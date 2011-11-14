@@ -1,0 +1,197 @@
+                                  NNCMS Manual
+
+What is NNCMS ?
+
+   NNCMS (NoName Content Managment System) a** is a simple content managment
+   system written on pure C. It requires a webserver with FastCGI support.
+
+   It is meant to allow control the content of website with web interface. It
+   can generate image thumbnails, you can browse, edit, remove, add files.
+
+   NNCMS is known to work with:
+
+     * gcc 4.3.3
+     * glibc 2.11-r1
+     * fastcgi 1.1.1.1
+     * lighttpd 1.4.25
+     * sqlite 3.6.21
+     * lua 5.1.4
+     * ImageMagick 6.5.7-0 [optional]
+
+Where to get NNCMS ?
+
+   From the official website http://pik-pik.ee/.
+
+  NNCMS 0.3 complete source code
+
+     * nncms-0.3 (tar.bz2) [374 KiB] - 14.06.2011
+       md5: 72ce758f5b2b4830a2525b5b897248f5
+
+  NNCMS 0.2 complete source code
+
+     * nncms-0.2 (tar.gz) [729.0 KiB] - 30.01.2010
+       md5: 2aee0be828e8a569440a7cc6782a7b39
+     * nncms-0.2 (tar.lzma) [324.0 KiB] - 30.01.2010
+       md5: d205f70fb53f89b3bfbbeaf82d2da236
+
+  NNCMS 0.1 complete source code
+
+     * nncms-0.1 (tar.bz2) [470.3 KiB] - 25.12.2009
+       md5: 04ae79e7975c14613339e1d9612335d6
+     * nncms-0.1 (tar.gz) [747.1 KiB] - 25.12.2009
+       md5: a6db4149d3c8da82da1349e479797f21
+
+Installation on Unix systems
+
+   You will need an working compiler, fastcgi and sqlite headers and
+   optionally ImageMagick header to compile NNCMS. The installation process
+   is written for Gentoo Linux distribution, you will need some expirience.
+
+   Unpack NNCMS somewhere and enter folder where NNCMS was unpacked:
+
+   user@localhost ~ $ tar -xjvf nncms-0.1.tar.bz2
+   user@localhost ~ $ cd nncms-0.1/
+   user@localhost ~/nncms-0.1 $
+
+   The initial NNCMS setup and configuration process is controlled by the use
+   of the command line options of the configure script. You could get a list
+   of all available options along with short explanations running
+
+   user@localhost ~/nncms-0.1 $ ./configure
+
+   If you want NNCMS to be configured with ImageMagick support, then execute:
+
+   user@localhost ~/nncms-0.1 $ ./configure --with-imagemagick
+
+   Now start compiling:
+
+   user@localhost ~/nncms-0.1 $ make
+
+   After compiling is done, you now should copy necessary files to website
+   folder. If you use lighttpd, and server.document-root in
+   /etc/lighttpd/lighttpd.conf configuration file is
+   /var/www/localhost/htdocs, then copy files there:
+
+   user@localhost ~/nncms-0.1 $ cd files
+   user@localhost ~/nncms-0.1/files $ cp -vR . /var/www/localhost/htdocs
+   user@localhost ~/nncms-0.1/files $ cd ..
+   user@localhost ~/nncms-0.1 $
+
+   Now enable fastcgi on lighttpd. First uncomment include "mod_fastcgi.conf"
+   in /etc/lighttpd/lighttpd.conf configuration file. Then edit
+   /etc/lighttpd/mod_fastcgi.conf file:
+
+ server.modules += ("mod_fastcgi")
+ fastcgi.server = ( ".fcgi" => ((
+         "host" => "127.0.0.1",
+         "port" => "9000",
+         "check-local" => "disable",
+         "docroot" => "/"
+ )) )
+
+   Restart lighttpd service:
+
+ root@localhost ~ # /etc/init.d/lighttpd restart
+ * Caching service dependencies...
+ * Stopping lighttpd...                         [ ok ]
+ * Starting                                     [ ok ]
+
+   If you wensite folder is differs from /var/www/localhost/htdoc, then you
+   will have to edit ~/nncms-0.1/src/nncms.conf file.
+
+   Now start NNCMS:
+
+   user@localhost ~/nncms-0.1 $ cd src
+   user@localhost ~/nncms-0.1/src $ ./spawn-fcgi -a 127.0.0.1 -p 9000 -n
+   ./nncms
+   (25.12.2009) 20:03:09 [Debug] Cfg::Init: Config file loaded
+   (25.12.2009) 20:03:09 [Info] Main: nncms started, created 1 threads
+
+   Perfect, NNCMS is set up and running.
+
+Running NNCMS
+
+   Now try to load http://127.0.0.1/ in your favorite browser. You should be
+   redirected to main page of NNCMS. Login as admin with password admin and
+   change password.
+
+   Have fun.
+
+Access Control List
+
+   NNCMS has simple Access Control List system. Functions of NNCMS are
+   categorized and called objects, you can give an access to an object to a
+   particular user. Watch help table below, to see all avaible permissions.
+
+   For example if we want to allow user "foo" to manipulate users, then we
+   add acl for object "user" with permission "*". Asterisk (*) means that you
+   allow to use any function avaible in "user" object.
+
+   A special subject is avaible for use: "guest". It is a user who is not
+   logged in yet.
+
+Template system
+
+   NNCMS template system can just replace variables or use Lua for a bit more
+   advanced stuff.
+
+Tag syntax                                    Result     Description             
+                                                         Outputs a variable.     
+<?= file_fullpath ?>                                     This method does not    
+                                                         execute the Lua.        
+                                                         Outputs the same        
+<?lua return string.upper(var.file_fullpath)             variable as above, but  
+?>                                                       using the Lua. All      
+                                                         template variables are  
+                                                         inside var array.       
+                                                         Escape HTML special     
+                                                         characters, replaces <, 
+                                                         >, ", ` and &. Should   
+<?lua return escape("text with <html> tags")  tags") ?>  be used in hyperlinks   
+?>                                                       in href attribute,      
+                                                         because HTML4.0         
+                                                         standart requires       
+                                                         escaping in links.      
+                                                         Check if session user   
+<?lua if( acl("user", "edit") ) then return              (you) is allowed to do  
+"You are allowed to edit users<br>" end ?>               "permission" in object  
+<?lua if( acl("user", "view") ) then return   " end ?>   "object". If access is  
+"You are allowed to view user profiles" end              granted, then text      
+?>                                                       inside is printed, if   
+                                                         not then text is        
+                                                         skipped and hidden.     
+                                                         Include file specified  
+                                                         inside tag in to this   
+<?lua return load("help/hello.txt") ?>                   page if user watching   
+                                                         this page has access to 
+                                                         it.                     
+                                                         A special recursive     
+                                                         file access check.      
+                                                         Check if session user   
+<?lua if( file_acl("help/hello.txt",                     (you) is allowed to     
+"download") ) then return "You are allowed    hello.txt" download "hello.txt"    
+download <a                                   end ?>     file. If access is      
+href=\"help/hello.txt\">hello.txt</a>" end ?>            granted, then text      
+                                                         inside is printed, if   
+                                                         not then text is        
+                                                         skipped and hidden.     
+
+Post system
+
+   Post system is intended to be something universal. Suitable for blogs,
+   forums and news posting. This is achieved by different templates used when
+   viewing posts:
+
+     * /post_topics.fcgi?post_id=1 a** shows posts which parent_id equals
+       post_id variable in URL. Shows only subjects of posts which are linked
+       to post_board.
+     * /post_board.fcgi?post_id=1 a** works the same as above, but also shows
+       the body of posts.
+     * /post_news.fcgi?post_id=1 a** suitable for displaying news or a blog.
+     * /post_rss.fcgi?post_id=1 a** syndication of the thread.
+
+Authors
+
+   avatar
+
+   ValkaTR <valkur@gmail.com>

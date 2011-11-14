@@ -1,0 +1,198 @@
+<h1>NNCMS Manual</h1>
+
+<h2>What is NNCMS ?</h2>
+
+<p></p><acronym title="NoName Content Managment System">NNCMS</acronym> (NoName Content Managment System) — is a simple content managment system written on pure C. It requires a webserver with FastCGI support.</p>
+
+<p>It is meant to allow control the content of website with web interface. It can generate image thumbnails, you can browse, edit, remove, add files.</p>
+
+<p>NNCMS is known to work with:</p>
+<ul>
+<li>gcc 4.3.3</li>
+<li>glibc 2.11-r1</li>
+<li>fastcgi 1.1.1.1</li>
+<li>lighttpd 1.4.25</li>
+<li>sqlite 3.6.21</li>
+<li>lua 5.1.4</li>
+<li>ImageMagick 6.5.7-0 [optional]</li>
+</ul>
+
+<h2>Where to get NNCMS ?</h2>
+
+From the official website <a href="http://pik-pik.ee/">http://pik-pik.ee/</a>.
+
+<h3>NNCMS 0.3 complete source code</h3>
+<ul>
+    <li>
+        <a href="http://pik-pik.ee/nncms/nncms-0.3.tar.bz2">nncms-0.3 (tar.bz2)</a> [374 KiB] - 14.06.2011<br>
+        <font color="#808080">md5: <code>72ce758f5b2b4830a2525b5b897248f5</code></font>
+    </li>
+</ul>
+
+<h3>NNCMS 0.2 complete source code</h3>
+<ul>
+    <li>
+        <a href="http://pik-pik.ee/nncms/nncms-0.2.tar.gz">nncms-0.2 (tar.gz)</a> [729.0 KiB] - 30.01.2010<br>
+        <font color="#808080">md5: <code>2aee0be828e8a569440a7cc6782a7b39</code></font>
+    </li>
+    <li>
+        <a href="http://pik-pik.ee/nncms/nncms-0.2.tar.lzma">nncms-0.2 (tar.lzma)</a> [324.0 KiB] - 30.01.2010<br>
+        <font color="#808080">md5: <code>d205f70fb53f89b3bfbbeaf82d2da236</code></font>
+    </li>
+</ul>
+
+<h3>NNCMS 0.1 complete source code</h3>
+<ul>
+    <li>
+        <a href="http://pik-pik.ee/nncms/nncms-0.1.tar.bz2">nncms-0.1 (tar.bz2)</a> [470.3 KiB] - 25.12.2009<br>
+        <font color="#808080">md5: <code>04ae79e7975c14613339e1d9612335d6</code></font>
+    </li>
+    <li>
+        <a href="http://pik-pik.ee/nncms/nncms-0.1.tar.gz">nncms-0.1 (tar.gz)</a> [747.1 KiB] - 25.12.2009<br>
+        <font color="#808080">md5: <code>a6db4149d3c8da82da1349e479797f21</code></font>
+    </li>
+</ul>
+
+<h2>Installation on Unix systems</h2>
+
+<p>You will need an working compiler, fastcgi and sqlite headers and optionally ImageMagick header to compile NNCMS. The installation process is written for Gentoo Linux distribution, you will need some expirience.</p>
+
+<p>Unpack NNCMS somewhere and enter folder where NNCMS was unpacked:</p>
+<code>
+<font color="green">user@localhost</font> <font color="blue">~ $</font> tar -xjvf nncms-0.1.tar.bz2<br>
+<font color="green">user@localhost</font> <font color="blue">~ $</font> cd nncms-0.1/<br>
+<font color="green">user@localhost</font> <font color="blue">~/nncms-0.1 $</font></code>
+
+<p>The initial NNCMS setup and configuration process is controlled by the use of the command line options of the configure script. You could get a list of all available options along with short explanations running</p>
+<code><font color="green">user@localhost</font> <font color="blue">~/nncms-0.1 $</font> ./configure</code>
+
+<p>If you want NNCMS to be configured with ImageMagick support, then execute:</p>
+<code><font color="green">user@localhost</font> <font color="blue">~/nncms-0.1 $</font> ./configure --with-imagemagick</code>
+
+<p>Now start compiling:</p>
+<code><font color="green">user@localhost</font> <font color="blue">~/nncms-0.1 $</font> make</code>
+
+<p>After compiling is done, you now should copy necessary files to website folder. If you use lighttpd, and <code>server.document-root</code> in <code>/etc/lighttpd/lighttpd.conf</code> configuration file is <code>/var/www/localhost/htdocs</code>, then copy files there:</p>
+<code>
+<font color="green">user@localhost</font> <font color="blue">~/nncms-0.1 $</font> cd files<br>
+<font color="green">user@localhost</font> <font color="blue">~/nncms-0.1/files $</font> cp -vR . /var/www/localhost/htdocs<br>
+<font color="green">user@localhost</font> <font color="blue">~/nncms-0.1/files $</font> cd ..<br>
+<font color="green">user@localhost</font> <font color="blue">~/nncms-0.1 $</font></code>
+
+<p>Now enable fastcgi on lighttpd. First uncomment <code>include "mod_fastcgi.conf"</code> in <code>/etc/lighttpd/lighttpd.conf</code> configuration file. Then edit <code>/etc/lighttpd/mod_fastcgi.conf</code> file:</p>
+<pre>
+server.modules += (&quot;mod_fastcgi&quot;)
+fastcgi.server = ( &quot;.fcgi&quot; =&gt; ((
+        &quot;host&quot; =&gt; &quot;127.0.0.1&quot;,
+        &quot;port&quot; =&gt; &quot;9000&quot;,
+        &quot;check-local&quot; =&gt; &quot;disable&quot;,
+        &quot;docroot&quot; =&gt; &quot;/&quot;
+)) )
+</pre>
+
+<p>Restart lighttpd service:</p>
+<pre>
+<font color="red">root@localhost</font> <font color="blue">~ #</font> /etc/init.d/lighttpd restart
+<font color="green">*</font> Caching service dependencies...
+<font color="green">*</font> Stopping lighttpd...                         <font color="blue">[</font> <font color="green">ok</font> <font color="blue">]</font>
+<font color="green">*</font> Starting                                     <font color="blue">[</font> <font color="green">ok</font> <font color="blue">]</font>
+</pre>
+
+<p>If you wensite folder is differs from <code>/var/www/localhost/htdoc</code>, then you will have to edit <code>~/nncms-0.1/src/nncms.conf</code> file.</p>
+
+<p>Now start NNCMS:</p>
+<code>
+<font color="green">user@localhost</font> <font color="blue">~/nncms-0.1 $</font> cd src<br>
+<font color="green">user@localhost</font> <font color="blue">~/nncms-0.1/src $</font> ./spawn-fcgi -a 127.0.0.1 -p 9000 -n ./nncms<br>
+(25.12.2009) 20:03:09 [Debug] Cfg::Init: Config file loaded<br>
+(25.12.2009) 20:03:09 [<font color="teal">Info</font>] Main: nncms started, created 1 threads
+</code>
+
+<p>Perfect, NNCMS is set up and running.</p>
+
+<h2>Running NNCMS</h2>
+
+<p>Now try to load <a href="http://127.0.0.1/">http://127.0.0.1/</a> in your favorite browser. You should be redirected to main page of NNCMS. Login as <code>admin</code> with password <code>admin</code> and change password.</p>
+
+<p>Have fun.</p>
+
+<h2>Access Control List</h2>
+
+<p>NNCMS has simple Access Control List system. Functions of NNCMS are categorized and called objects, you can give an access to an object to a particular user. Watch help table below, to see all avaible permissions.</p>
+
+<?lua return load("help/acl_help.html") ?>
+
+<p>For example if we want to allow user "foo" to manipulate users, then we add acl for object "user" with permission "*". Asterisk (*) means that you allow to use any function avaible in "user" object.</p>
+
+<p>A special subject is avaible for use: "guest". It is a user who is not logged in yet.</p>
+
+<h2>Template system</h2>
+
+<p>NNCMS template system can just replace variables or use <a href="http://www.lua.org/manual/">Lua</a> for a bit more advanced stuff.</p>
+
+<center><table cellpadding="1" cellspacing="1" border="0" bgcolor="#CCCCCC">
+	<tr>
+		<th>Tag syntax</th>
+		<th>Result</th>
+		<th>Description</th>
+	</tr>
+
+	<tr bgcolor="#FFFFFF">
+		<td valign="center"><code>&lt;?= file_fullpath ?&gt;</code></td>
+		<td valign="center"><?= file_fullpath ?></td>
+		<td>Outputs a variable. This method does not execute the Lua.</td>
+	</tr>
+
+	<tr bgcolor="#FFFFFF">
+		<td valign="center"><code>&lt;?lua return string.upper(var.file_fullpath) ?&gt;</code></td>
+		<td valign="center"><?lua return string.upper(var.file_fullpath) ?></td>
+		<td>Outputs the same variable as above, but using the Lua. All template variables are inside <code>var</code> array.</td>
+	</tr>
+
+    <tr bgcolor="#FFFFFF">
+		<td valign="center"><code>&lt;?lua return escape("text with &lt;html&gt; tags") ?&gt;</code></td>
+		<td valign="center"><?lua return escape("text with <html> tags") ?></td>
+		<td>Escape HTML special characters, replaces &lt;, &gt;, &quot;, &apos; and &amp;. Should be used in hyperlinks in href attribute, because HTML4.0 standart requires escaping in links.</td>
+	</tr>
+
+    <tr bgcolor="#FFFFFF">
+        <td valign="center"><code>
+            &lt;?lua if( acl("user", "edit") ) then return "You are allowed to edit users&lt;br&gt;" end ?&gt;<br>
+            &lt;?lua if( acl("user", "view") ) then return "You are allowed to view user profiles" end ?&gt;
+        </code></td>
+        <td valign="center">
+            <?lua if( acl("user", "edit") ) then return "You are allowed to edit users<br>" end ?>
+            <?lua if( acl("user", "view") ) then return "You are allowed to view user profiles" end ?>
+        </td>
+        <td>Check if session user (you) is allowed to do "permission" in object "object". If access is granted, then text inside is printed, if not then text is skipped and hidden.</td>
+    </td>
+
+	<tr bgcolor="#FFFFFF">
+		<td valign="center"><code>&lt;?lua return load("help/hello.txt") ?&gt;</code></td>
+		<td valign="center"><?lua return load("help/hello.txt") ?></td>
+		<td>Include file specified inside tag in to this page if user watching this page has access to it.</td>
+	</tr>
+
+    <tr bgcolor="#FFFFFF">
+        <td valign="center"><code>&lt;?lua if( file_acl("help/hello.txt", "download") ) then return "You are allowed download &lt;a href=\"help/hello.txt\"&gt;hello.txt&lt;/a&gt;" end ?&gt;</code></td>
+        <td valign="center"><?lua if( file_acl("help/hello.txt", "download") ) then return "You are allowed download <a href=\"help/hello.txt\">hello.txt</a>" end ?></td>
+        <td>A special recursive file access check. Check if session user (you) is allowed to download "hello.txt" file. If access is granted, then text inside is printed, if not then text is skipped and hidden.</td>
+    </td>
+
+</table></center><br>
+
+<h2>Post system</h2>
+
+<p>Post system is intended to be something universal. Suitable for blogs, forums and news posting. This is achieved by different templates used when viewing posts:</p>
+
+<ul>
+    <li><code>/post_topics.fcgi?post_id=1</code> — shows posts which parent_id equals post_id variable in URL. Shows only subjects of posts which are linked to <code>post_board</code>.</li>
+    <li><code>/post_board.fcgi?post_id=1</code> — works the same as above, but also shows the body of posts.</li>
+    <li><code>/post_news.fcgi?post_id=1</code> — suitable for displaying news or a blog.</li>
+    <li><code>/post_rss.fcgi?post_id=1</code> — syndication of the thread.</li>
+</ul>
+
+<h2>Authors</h2>
+
+<img src="/help/p1100450.png" alt="avatar" width="85" height="85" align="left">
+<p>ValkaTR &lt;valkur@gmail.com&gt;</p>

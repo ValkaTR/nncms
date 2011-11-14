@@ -1,0 +1,28 @@
+<form name="xxx_form" action="<?= homeURL ?>/nncms.fcgi?page=xxx_edit&xxx_id=<?= xxx_id ?>" method="POST">
+<form name="xxx_form" action="<?= homeURL ?>/xxx_edit.fcgi?xxx_id=<?= xxx_id ?>" method="POST">
+	<table border="0" cellpadding="5" cellspacing="0" width="100%">
+	<tr>
+		<td width="30%" valign="top"><span class="varname">xxx_id</span><br><span class="vardesc">Xxx unique number</span></td>
+		<td width="70%" valign="middle"><?= xxx_id ?></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">xxx_text</span><br><span class="vardesc">Xxx text</span></td>
+		<td width="70%" valign="middle"><input type="text" name="xxx_text" size="30" value="<?lua return escape_html(var.xxx_text) ?>"></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">xxx_password</span><br><span class="vardesc">Xxx password</span></td>
+		<td width="70%" valign="middle"><input type="password" name="xxx_password" size="30" value=""></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">xxx_area</span><br><span class="vardesc">Xxx text area</span></td>
+		<td width="70%" valign="middle"><textarea tabindex="1" name="xxx_area" rows="15" cols="70"><?lua return escape_html(var.xxx_area) ?></textarea></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">xxx_edit</span><br><span class="vardesc">Click on the button to apply</span></td>
+		<td width="70%" valign="middle">
+			<input type="hidden" name="referer" value="<?lua return escape_html(var.referer) ?>">
+			<input type="submit" name="xxx_edit" size="30" value="Edit xxx">
+		</td>
+	</tr>
+	</table>
+</form>

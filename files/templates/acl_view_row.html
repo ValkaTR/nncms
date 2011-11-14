@@ -1,0 +1,10 @@
+	<tr bgcolor="#FFFFFF">
+		<td align="center"><?= acl_id ?></td>
+		<td><?= acl_object ?></td>
+		<td><?= acl_subject ?></td>
+		<td><?= acl_perm ?></td>
+		<td align="center">
+            <?lua if(acl("acl", "edit") == true) then return "<a href=\"" .. var.homeURL .. "/acl_edit.fcgi?acl_id=" .. var.acl_id .. "\"><img src=\"" .. var.homeURL .. "/images/actions/gtk-edit.png\" width=\"16\" height=\"16\" alt=\"edit\" title=\"Edit this row\" border=\"0\"></a>" end ?>
+            <?lua if(acl("acl", "delete") == true) then return "<a href=\"" .. var.homeURL .. "/acl_delete.fcgi?acl_id=" .. var.acl_id .. "\"><img src=\"" .. var.homeURL .. "/images/actions/edit-delete.png\" width=\"16\" height=\"16\" alt=\"delete\" title=\"Delete this row\" border=\"0\"></a>" end ?>
+		</td>
+	</tr>

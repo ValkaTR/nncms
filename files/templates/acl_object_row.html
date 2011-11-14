@@ -1,0 +1,8 @@
+	<tr bgcolor="#FFFFFF">
+		<td><?= acl_object ?></td>
+		<td align="center"><?= acl_entries ?></td>
+		<td align="center">
+            <?lua if(acl("acl", "view") == true) then return "<a href=\"" .. var.homeURL .. "/acl_view.fcgi?acl_object=" .. var.acl_object .. "\"><img src=\"" .. var.homeURL .. "/images/apps/preferences-system-authentication.png\" width=\"16\" height=\"16\" alt=\"view\" title=\"View ACL of this object\" border=\"0\"></a>" end ?>
+            <?lua if(acl("acl", "delete") == true) then return "<a href=\"" .. var.homeURL .. "/acl_delete.fcgi?acl_object=" .. var.acl_object .. "\"><img src=\"" .. var.homeURL .. "/images/actions/edit-delete.png\" width=\"16\" height=\"16\" alt=\"delete\" title=\"Delete this object\" border=\"0\"></a>" end ?>
+		</td>
+	</tr>

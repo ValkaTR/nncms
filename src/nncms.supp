@@ -1,0 +1,16 @@
+{
+   Conditional jump or move depends on uninitialised value(s)
+   Memcheck:Cond
+   obj:*
+}
+{
+   Use of uninitialised value
+   Memcheck:Value8
+   obj:*
+}
+{
+   Syscall param arch_prctl(arg2) contains uninitialised byte(s)
+   Memcheck:Param
+   arch_prctl(arg2)
+   obj:*
+}

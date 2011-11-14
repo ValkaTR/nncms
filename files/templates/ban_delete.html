@@ -1,0 +1,40 @@
+<form name="ban_delete_form" action="<?= homeURL ?>/ban_delete.fcgi?ban_id=<?= ban_id ?>" method="POST">
+	<table border="0" cellpadding="5" cellspacing="0" width="100%">
+    <tr>
+        <td width="30%" valign="top"><span class="varname">ban_id</span><br><span class="vardesc">Ban id in database</span></td>
+        <td width="70%" valign="middle"><?= ban_id ?></td>
+    </tr>
+    <tr>
+        <td width="30%" valign="top"><span class="varname">user_id</span><br><span class="vardesc">User unique number</span></td>
+        <td width="70%" valign="middle"><a href="<?= homeURL ?>/user_view.fcgi?user_id=<?= ban_user_id ?>">№<?= ban_user_id ?></a></td>
+    </tr>
+    <tr>
+        <td width="30%" valign="top"><span class="varname">user_nick</span><br><span class="vardesc">User nick name</span></td>
+        <td width="70%" valign="middle"><a href="<?= homeURL ?>/user_view.fcgi?user_id=<?= ban_user_id ?>"><?lua return escape_html(var.ban_user_nick) ?></a></td>
+    </tr>
+    <tr>
+        <td width="30%" valign="top"><span class="varname">ban_timestamp</span><br><span class="vardesc">Ban set timestamp</span></td>
+        <td width="70%" valign="middle"><?= ban_timestamp ?></td>
+    </tr>
+    <tr>
+        <td width="30%" valign="top"><span class="varname">ban_ip</span><br><span class="vardesc">Ban ip address</span></td>
+        <td width="70%" valign="middle"><?= ban_ip ?></td>
+    </tr>
+    <tr>
+        <td width="30%" valign="top"><span class="varname">ban_mask</span><br><span class="vardesc">Ban mask</span></td>
+        <td width="70%" valign="middle"><?= ban_mask ?></td>
+    </tr>
+    <tr>
+        <td width="30%" valign="top"><span class="varname">ban_reason</span><br><span class="vardesc">Ban reason</span></td>
+        <td width="70%" valign="middle"><?lua return escape_html(var.ban_reason) ?></td>
+    </tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">ban_delete</span><br><span class="vardesc">Click on the button to delete ban</span></td>
+		<td width="70%" valign="middle">
+			<input type="hidden" name="referer" value="<?lua return escape_html(var.referer) ?>">
+            <input type="hidden" name="fkey" value="<?= fkey ?>">
+			<input type="submit" name="ban_delete" size="30" value="Delete Ban">
+		</td>
+	</tr>
+    </table>
+</form><br>

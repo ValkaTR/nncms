@@ -1,0 +1,6 @@
+	<tr bgcolor="#FFFFFF">
+		<td><abbr title="<?= session_id ?>">Session</a></td>
+		<td><a href="<?= homeURL ?>/user_view.fcgi?user_id=<?= user_id ?>"><?= user_name ?></a></td>
+		<td><?= session_timestamp ?></td>
+        <td align="center"><?lua if(acl("user", "delete_session") == true) then return "<a href=\"" .. var.homeURL .. "/user_del_session.fcgi?session_id=" .. var.session_id .. "\"><img src=\"" .. var.homeURL .. "/images/actions/edit-delete.png\" alt=\"del session\" height=\"16\" width=\"16\" border=\"0\"></a>" end ?></td>
+	</tr>

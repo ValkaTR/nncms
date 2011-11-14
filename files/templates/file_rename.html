@@ -1,0 +1,20 @@
+<form name="file_rename_form" action="<?= homeURL ?>/file_rename.fcgi?file_name=<?lua return escape_html(var.file_name) ?>" method="POST">
+    <table border="0" cellpadding="5" cellspacing="0" width="100%">
+	<tr>
+		<td width="30%" valign="top"><span class="varname">file_old</span><br><span class="vardesc">Rename from</span></td>
+		<td width="70%" valign="middle"><img src="<?= homeURL ?>/<?= file_icon ?>" width="16" height="16" alt="icon"> <?lua return escape_html(var.file_name) ?></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">file_new</span><br><span class="vardesc">Rename to</span></td>
+		<td width="70%" valign="middle"><input type="text" name="file_new" size="30" value="<?lua return escape_html(var.file_new) ?>"></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">file_rename</span><br><span class="vardesc">Click on the button to rename file</span></td>
+		<td width="70%" valign="middle">
+			<input type="hidden" name="referer" value="<?lua return escape_html(var.referer) ?>">
+            <input type="hidden" name="fkey" value="<?= fkey ?>">
+			<input type="submit" name="file_rename" size="30" value="Rename file">
+		</td>
+	</tr>
+    </table>
+</form>

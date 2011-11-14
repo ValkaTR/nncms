@@ -1,0 +1,7 @@
+<div class="post" style="text-indent: 3em;">
+   <?lua if(acl("post", "view") == true) then return "<a href=\"" .. var.homeURL .. "/post_view.fcgi?post_id=" .. var.post_id .. "\"><img src=\"" .. var.homeURL .. "/images/stock/net/stock_mail-open.png\" width=\"16\" height=\"16\" alt=\"view\" title=\"[№" .. var.post_id .. "] " .. var.post_timestamp .. "\" border=\"0\"></a>" end ?>
+   <?lua if(acl("post", "add") == true) then return "<a href=\"" .. var.homeURL .. "/post_add.fcgi?post_parent=" .. var.post_id .. "\"><img src=\"" .. var.homeURL .. "/images/actions/mail-message-new.png\" width=\"16\" height=\"16\" alt=\"reply\" title=\"Reply to this post\" border=\"0\"></a>" end ?>
+   <?lua if(acl("post", "edit") == true) then return "<a href=\"" .. var.homeURL .. "/post_edit.fcgi?post_id=" .. var.post_id .. "\"><img src=\"" .. var.homeURL .. "/images/actions/gtk-edit.png\" width=\"16\" height=\"16\" alt=\"edit\" title=\"Edit this post\" border=\"0\"></a>" end ?>
+   <?lua if(acl("post", "delete") == true) then return "<a href=\"" .. var.homeURL .. "/post_delete.fcgi?post_id=" .. var.post_id .. "\"><img src=\"" .. var.homeURL .. "/images/actions/edit-delete.png\" width=\"16\" height=\"16\" alt=\"delete\" title=\"Delete this post\" border=\"0\"></a>" end ?>
+   <b>[<a href="<?= homeURL ?>/user_view.fcgi?user_id=<?= user_id ?>"><?lua return escape_html(var.user_nick) ?></a>]</b> <?lua return escape_html(var.post_subject) ?><br>
+</div>

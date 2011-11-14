@@ -1,0 +1,30 @@
+<form name="acl_delete_form" action="<?= homeURL ?>/acl_delete.fcgi?acl_id=<?= acl_id ?>&amp;acl_object=<?= acl_object ?>" method="POST">
+	<table border="0" cellpadding="5" cellspacing="0" width="100%">
+	<tr>
+		<td width="30%" valign="top"><span class="varname">acl_id</span><br><span class="vardesc">ACL unique number</span></td>
+		<td width="70%" valign="middle"><?= acl_id ?></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">acl_object</span><br><span class="vardesc">ACL name</span></td>
+		<td width="70%" valign="middle"><?= acl_object ?></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">acl_subject</span><br><span class="vardesc">Account who is given access</span></td>
+		<td width="70%" valign="middle"><?= acl_subject ?></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">acl_perm</span><br><span class="vardesc">List of granted permissions</span></td>
+		<td width="70%" valign="middle"><?= acl_perm ?></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">acl_delete</span><br><span class="vardesc">Click on the button to delete ACL</span></td>
+		<td width="70%" valign="middle">
+			<input type="hidden" name="referer" value="<?lua return escape_html(var.referer) ?>">
+            <input type="hidden" name="fkey" value="<?= fkey ?>">
+			<input type="submit" name="acl_delete" size="30" value="Delete ACL">
+		</td>
+	</tr>
+    </table>
+</form><br>
+
+<?lua return load("help/acl_help.html") ?>

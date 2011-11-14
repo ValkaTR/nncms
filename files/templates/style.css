@@ -1,0 +1,21 @@
+A { text-decoration: none; color: #33e; }
+A:hover { text-decoration: underline; color: #66f; }
+A:visited { color: #529; }
+
+IMG { border: 0; }
+
+SPAN.varname { font-weight: bold; }
+SPAN.vardesc { color: #808080; }
+
+INPUT, TEXTAREA { border-style: solid; border-width: 1px; border-color: #808080 #A0A0A0 #A0A0A0 #808080; }
+INPUT:focus, TEXTAREA:focus { background-color: #FFFF80; }
+
+TABLE.block { background-color: #CCFFCC; border: 0px; }
+TR.block { background-color: #FFFFFF; }
+
+TABLE.frame { background-color: #CCCCFF; border: 0px; }
+TR.frame { background-color: #FFFFFF; }
+
+TABLE.post { background-color: #CCCCCC; border: 0px; }
+TR.post { background-color: #FFFFFF; }
+TD.post { background-color: #FFFFFF; }

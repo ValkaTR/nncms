@@ -1,0 +1,76 @@
+2011-10-30 19:54    ValkaTR
+
+    * gallery page added with pages, sorting and caching
+    * bans by ip
+    * some anti vulnurability code added
+
+2011-06-14 15:00    ValkaTR
+
+    * reply, modify, remove now have depth limit
+      depth 1 - means access to only selected post
+      depth 2 - means access to selected and its parent
+      depth 0 - defaults to POST_CHECK_PERM_DEPTH
+
+2011-06-13 18:44    ValkaTR
+
+    * database queries are now using prepared statements
+    * rss is available via /post_rss.fcgi?post_id=<id>
+
+2010-12-25 19:20    ValkaTR
+
+    * fileInfo now has static variables
+
+2010-12-25 01:23    ValkaTR
+
+    * fixed post system at last
+    * prepared statements for acl and log
+    * lua template system
+    * url shortened by 11 characters (nncms?page=)
+
+2010-12-12 16:02    ValkaTR
+
+    * ported from MagickCore to MagickWand, making thumbnail generation
+      process more clean
+
+2010-12-12 03:24    ValkaTR
+
+    * possible to enable/disable in config
+        * rewrite rules
+        * cache in memory
+    * thumbnails now have long expiration time, and have correct last
+      modified date, which will (i hope) force browsers to cache them,
+      decreasing server load by this
+    * fixed memory leak when terminating threads, the create thread cycle makes
+      the threadInfo, stores it and passes to thread, instead of just it's
+      number
+    * nncms will detect httpd and use appropriate number of newline at
+      end of HTTP headers
+
+2010-05-24 01:25    ValkaTR
+
+    * while getting rid of file_get_actions a crazy crash has appeared
+      fixing took a little time
+    * memory leak fixed in {include} tag processing
+
+2010-01-30 03:02    ValkaTR
+
+    * fixed crash caused by missing "file" attribute in view_show
+    * new tree module, it can save attributes
+    * garbage collector now is located in separate file (memory.c)
+    * garbage collector now use hash table
+    * config file now supports boolean
+    * garbage collector can be disabled in config file
+    * now number of threads can be changed in config file
+    * template system is improved very much
+
+2009-12-28 10:37    ValkaTR
+
+    * maybe fixed threads
+    * acl_edit: will not try to edit acl if id is invalid
+    * acl_delete: will not try to delete acl if id/object is invalid
+    * fixed some bugs, where no id data is given to file_* funtions, which
+      leads to a seg. fault
+
+2009-12-26 00:00    ValkaTR
+
+    * first release

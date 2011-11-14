@@ -1,0 +1,20 @@
+<form name="cache_clear_form" action="<?= homeURL ?>/cache_admin.fcgi" method="POST">
+	<table border="0" cellpadding="5" cellspacing="0" width="100%">
+	<tr>
+		<td width="30%" valign="top"><span class="varname">cache_clear_html</span><br><span class="vardesc">Clear cached HTML files</span></td>
+		<td width="70%" valign="middle"><input type="checkbox" name="cache_clear_html" checked></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">cache_clear_thumbnail</span><br><span class="vardesc">Delete thumbnails</span></td>
+		<td width="70%" valign="middle"><input type="checkbox" name="cache_clear_thumbnail"></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">cache_clear</span><br><span class="vardesc">Click on the button to apply</span></td>
+		<td width="70%" valign="middle">
+            <input type="hidden" name="referer" value="<?lua return escape_html(var.referer) ?>">
+            <input type="hidden" name="fkey" value="<?= fkey ?>">
+            <input type="submit" name="cache_clear" value="Clear cache">
+		</td>
+	</tr>
+	</table>
+</form>

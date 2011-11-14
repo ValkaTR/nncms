@@ -1,0 +1,44 @@
+<form name="post_modify_form" action="<?= homeURL ?>/post_modify.fcgi?post_id=<?= post_id ?>" method="POST">
+	<table border="0" cellpadding="5" cellspacing="0" width="100%">
+	<tr>
+		<td width="30%" valign="top"><span class="varname">user_id</span><br><span class="vardesc">User unique number</span></td>
+		<td width="70%" valign="middle"><a href="<?= homeURL ?>/user_view.fcgi?user_id=<?= user_id ?>">№<?= user_id ?></a></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">user_nick</span><br><span class="vardesc">User nick name</span></td>
+		<td width="70%" valign="middle"><a href="<?= homeURL ?>/user_view.fcgi?user_id=<?= user_id ?>"><?lua return escape_html(var.user_nick) ?></a></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">post_id</span><br><span class="vardesc">Post identification number</span></td>
+		<td width="70%" valign="middle"><a href="<?= homeURL ?>/post_view.fcgi?post_id=<?= post_id ?>">№<?= post_id ?></a></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">post_parent</span><br><span class="vardesc">Identification number of parent post</span></td>
+		<td width="70%" valign="middle"><a href="<?= homeURL ?>/post_view.fcgi?post_id=<?= post_parent ?>">№<?= post_parent ?></a></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">post_timestamp</span><br><span class="vardesc">Post timestamp</span></td>
+		<td width="70%" valign="middle"><?= post_timestamp ?></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">post_date</span><br><span class="vardesc">Post timestamp in human format</span></td>
+		<td width="70%" valign="middle"><?= post_date ?></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">post_subject</span><br><span class="vardesc">Post subject</span></td>
+		<td width="70%" valign="middle"><input type="text" name="post_subject" size="40" value="<?lua return escape_html(var.post_subject) ?>"></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">post_body</span><br><span class="vardesc">Post text</span></td>
+		<td width="70%" valign="middle"><textarea tabindex="1" name="post_body" rows="15" cols="40"><?lua return escape_html(var.post_body) ?></textarea></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">post_modify</span><br><span class="vardesc">Click on the button to modify post</span></td>
+		<td width="70%" valign="middle">
+			<input type="hidden" name="referer" value="<?lua return escape_html(var.referer) ?>">
+            <input type="hidden" name="fkey" value="<?= fkey ?>">
+			<input type="submit" name="post_modify" size="30" value="Modify post">
+		</td>
+	</tr>
+	</table>
+</form>

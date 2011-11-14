@@ -1,0 +1,28 @@
+<form name="user_register_form" action="<?= homeURL ?>/user_register.fcgi" method="POST">
+	<table border="0" cellpadding="5" cellspacing="0" width="100%">
+	<tr>
+		<td width="30%" valign="top"><span class="varname">user_name</span><br><span class="vardesc">Enter user name</span></td>
+		<td width="70%" valign="middle"><input type="text" name="user_name" size="30" value=""></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">user_nick</span><br><span class="vardesc">Enter nick name</span></td>
+		<td width="70%" valign="middle"><input type="text" name="user_nick" size="30" value=""></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">password</span><br><span class="vardesc">Enter pass <b>phrase</b></span></td>
+		<td width="70%" valign="middle"><input type="password" name="user_password" size="30" value=""></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">password_retry</span><br><span class="vardesc">Enter pass <b>phrase</b> again</span></td>
+		<td width="70%" valign="middle"><input type="password" name="user_password_retry" size="30" value=""></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">register</span><br><span class="vardesc">Click on the button to register</span></td>
+		<td width="70%" valign="middle">
+			<input type="hidden" name="referer" value="<?lua return escape_html(var.referer) ?>">
+            <input type="hidden" name="fkey" value="<?= fkey ?>">
+			<input type="submit" name="user_register" size="30" value="Register">
+		</td>
+	</tr>
+	</table>
+</form>

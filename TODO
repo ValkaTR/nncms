@@ -1,0 +1,340 @@
+    #   # #   #  ## #   #  ##
+   ##  # ##  # #   ## ## #
+  # # # # # # #   # # #  ##
+ #  ## #  ## #   #   #    #
+#   # #   #  ## #   #  ##
+
+#   # #   #  ## #   #  ##
+##  # ##  # #   ## ## #
+# # # # # # #   # # #  ##
+#  ## #  ## #   #   #    #
+#   # #   #  ## #   #  ##
+
+    _/      _/  _/      _/    _/_/  _/      _/    _/_/
+   _/_/    _/  _/_/    _/  _/      _/_/  _/_/  _/
+  _/  _/  _/  _/  _/  _/  _/      _/  _/  _/    _/_/
+ _/    _/_/  _/    _/_/  _/      _/      _/        _/
+_/      _/  _/      _/    _/_/  _/      _/    _/_/
+
+=== Release TODO — nncms 0.1 ===
+
++ Big output page size (1 MiB)
++ Rename file (Done!)
++ Upload link
++ Standartize file icons (make struct NNCMS_FILE_ICON,
+    function to get icon from fileName/extension)
++ View file ->
+    + download link (Done!)
+    + file icon
++ Interface to modify ACL
+    + edit acl entry
+    + add acl entry
+    + remove acl entry
++ Logout
++ Remove file
++ Remove directory
++ Create file
++ Create directory
++ Fix edit (remove data before apply)
++ database_query( ... );
++ Log actions
+    + File
+        + Add file
+        + Add folder
+        + Edit
+        + Upload
+        + Rename
+        + Delete
+    + User
+        + Login
+        + Register
+        + Edit
+        + Delete
+    + Config edit
++ Fix shit with opendir( "." ); in files as it is not compatible
+    with threading at all
+    . impossible? re: possible
+    . the file_get_ents routine looks file in current directory,
+      but they are in other
+    + remove file_get_ents
+    . now it is possible to use relative paths in .conf file
+* Admin panel, where user with permission can edit stuff
+    * file icons
+    + session list (ram chip as icon)
+        * delete sessions
+    + edit access/error/nncms log file path
+    + edit anything found in nncms.conf
+    + edit acls
+        + list of objects
+        + when click on object - you edit it
+    - log, 5 entries
++ More tags, less "snprintf"
+    + convert {action} to {$homeURL}/mod_act.html?var={mod_var}
+    + convert {mod_act} to <a href=...
++ redirect to referer in login block
++ log fullpath with data
++ ICONS for frame title!!1
+    . as tag {icon}
++ Recursive permissions for files
+    + individual permissions for file
+    + ACL Permissions for blocks
++ Log system to console, file and SQL table
+    + function to add log line easily
+        it should save user_id/name/nick, ip address, time et cetera
+    + view log page
+    * export log?
+	! well, no, it is possible to download it from ./logs/
+    + clear log
+    * filter by user, priority...
+    + view additional info:
+        + host
+        + uri
+        + referer
+        + user-agent
+        * src_file
+        * src_line
++ Remove EMAIL from USERS table
+    * use user_set_info( ); instead
+    * create set_info, which allows to set any additional info about user
+        * last user-agent
+        * last host
+        * last login date
+        * register date
+        * last action (or take from log?)
++ User list
+    + Edit user
+        * allow user to edit itself
+    + Delete user
++ fixed view. empty "file" variable caused crash
++ { /* szName */ "content",  /* szValue */ szBuffer }
+    + file.c
+    + user.c
+    + cfg.c
+    + acl.c
+    + block.c
++ Replace "NNCMS_TEMPLATE_TAGS" with "struct NNCMS_TEMPLATE_TAGS"
+    + remove typedefs
+* in view.html "text/*" convert cp1251 to utf-8
+    * recode?
++ Delete old sessions
++ View file ->
+    + show picture thumbnail
+        + memory cache (when loading a lot of images, speed
+            boost is sensible)
+        + file cache (swapping)
+        * dynamic cache (allow to change cache size in config)
+            would be cool if you set a size limit, not an
+            item count limit
+    + file size
+    + mimetype
+    + action buttons
++ file_get_info( ... );
+    *+ implement everywhere
+* Backup function (file_backup)
+    * backup files before commit edit
+    * when deleting
++ database_query( ... );
+    + implement everywhere
++ Topic/Post system
+    + Post Add Edit View...
+    + Blog/News combo (post system)
+* fix sql insert, update, delete
+    * create database_exec, it returns string to error or zero
+    * catch error with database_exec
++ implement redirect_to_referer( ); where possible
++ Garbage collector created
+    + watch for memory leaks
++ port to FastCGI
+    + put Hughes HTTPd in garbage (woohooo)
+    + file_upload
+    * file_download
+        omg, this should be done with FCGI_AUTHORIZER
+        somehow, kewl, i dont need to send files, webserver
+        will do its job
+* fix bullshit with filtering evil data
+    i found cool sqlite3_vmprintf with %Q
+    + post.c:post_add
+    + user.c:user_edit
++ Systematize memory usage
+    ! create struct NNCMS_MEMORY with some buffers
+    ! add another parametr to httpdProcessRequest with void * type,
+        it will send this parametr to file_browse, file_edit, user_register,
+        acl_edit, acl_delete, and et cetera
+    ! pages should use one group of NNCMS_MEMORY
+    - subpages use second group of NNCMS_MEMORY
+    ! read about sockets + threading
+    ! try threading: add wait(5 seconds) to a page and load page twice
+    + NNCMS_THREAD_INFO
+        taht was quite easy
+    + need to learn about mutex, some operations must stop other threads
+        if they try to do same operation
++ Smart buffers
+    idea is to optimize catcenate without uglifying code
+    strncat does strlen everytime, and also i doest not work as i
+    expected, i thought that 'n' letter means that it would limit
+    number of characters  i put in buffer. i was wrong, if you read
+    manual it says:
+        "If src contains n or more characters, strncat()
+         writes n+1 characters to dest".
+    thats a complete bullshit, no protection from overflow, internets
+    says that i could do liek this:
+        // https://buildsecurityin.us-cert.gov/daisy/bsi-rules/home/g1/853-BSI.html
+        const int BUFSIZE = 18;
+        char d[BUFSIZE];
+        char w[] = "Word";
+        d[0] = '\0';
+        while( strlen( d ) < BUFSIZE - 1 )
+        {
+            strncat( d, w, BUFSIZE - 1 - strlen( d ) ); /* Avoids overflow */
+        }
+        d[BUFSIZE-1] = '\0'; /* Ensure null termination */
+    thats horse shit too, triple strlen, fuck it
+    !!!!!!!!!!! OMFG LOL NEW DISCOVERY!!!!!!!!!!!!!
+    http://www.gratisoft.us/todd/papers/strlcpy.html
+    strncpy: unfilled space of destination buffer is filled with
+    NUL characters, this is SO FUCKING SLOW OMFG HORSE SHIT
+    strlcpy is faster than strncpy
+    perfect sample:
+        len = strlcpy( path, homedir, sizeof(path) );
+        if( len >= sizeof(path) )
+            return (ENAMETOOLONG);
+
+        len = strlcat( path, "/", sizeof(path) );
+        if( len >= sizeof(path) )
+            return (ENAMETOOLONG);
+
+        len = strlcat( path, ".foorc", sizeof(path) );
+        if( len >= sizeof(path) )
+            return (ENAMETOOLONG);
+
+    smartbuffers:
+
+    // Create smart buffers
+    struct NNCMS_BUFFER smartBuffer =
+        {
+            /* lpBuffer */ req->lpszBuffer,
+            /* nSize */ NNCMS_PAGE_SIZE_MAX,
+            /* nPos */ 0
+        };
+    *smartBuffer.lpBuffer = 0;
+    smart_cat( &smartBuffer,  );
+
+    * implement smartBuffers everywhere where is possible
+        + file.c:file_browse/get_actions
+        + mail.c:main_info
+        + user.c:user_view
+        + post.c:post_add/view/news
+        + acl.c:acl_view
+        + cfg.c:cfg_view
++ release at last
++ for booleans use "bool" instead of (unsigned) char
++ Show thumnail, video, mp3 tags, jpeg exif in view.html
++ UTF-8 support in file_browse and others
+    problem is in evil filter
++ Fix parent directory link
+
+=== Release TODO — nncms 0.2 ===
+
++ This app needs some html escaping, unescaped character like & + # causes
+    real trouble
++ We need an very advanced template parser, it should able to
+    + give variables as escaped html
+    + include files
+    + give access to parts of text with acl permission
+        <acl object="{file_name}" subject="{$user_name}" permission="download"><a href="{homeURL}/{file_name}">download link</a></acl>
+        {file_acl file="{$file_name}" permission="download"><a href="{$homeURL}{$file_fullpath}">download link</a>{/file_acl}
+    - so, maybe try a double pass system
+        - first we replace all {variables}
+        - then process all custom tags like <acl> <math> etc...
++ try different advanced template parser based on LUA
++ remove "file_get_actions" function
++ try to find why thumbnails aren't working in SuSE
+    - the nginx passed newline to data
+- pages routines need to be improved, the new template system does not require
+    big buffer now. We have to get rid of "strlcpy" in "template_parse"
+    function somehow.
+++ shit below may be fixed by using LUA interpreter, so we don't have to
+    reinvent a bicycle. LUA code will be in <?lua ?> tags, just like php.
+    but i will need a good caching system
+- strings from template_process_tag are always free'd, this means, that
+    it can't return static data and needs to strdup_d them. We have to avoid
+    this somehow. Why you can't fucking return more than one value from
+    a function?
+- CSS fucks up the template system, because it use curly brackets { }
+    temporary solution is to use: &123; and &125; instead
+- currently new template system is not completely mistake proof, so you have to
+    be very carefull, any mistake may crash nncms
++ lot's of stuff needs to be HTML escaped in templates
+? probably we need some super global tags, which exists every where when
+    processing a template, like: user_*, homeURL, referer
++ try static file_info structure
+
+
+== Release TODO — nncms 0.3 ==
+
++ send correct last modified for pages
++ add groups, so that registered users get a special group
+* convert SQL printf to prepare-step-column
+    + log module
+    + acl module
+    + user
+    + post
++ post system fixed
++ rss
+? convert [head, row, row, foot] into structure(row, row) just like in post_rss
+    - [head, row, row, foot] just appends data to the smartbuffer
+    - structure(row, row) makes one copy of (row, row)
+    + post.c
++ dump custom config parser and replace with lua
+
+== Release TODO — nncms 0.4 ==
+
+* check client hash in sessions when doing actions
+    + add columns in sessions for client ip and agent
+    + recheck data
+    * ban cookie stealers
++ preventing CSRF and XSRF attacks
+    + acl, ban, file, log, post, user
+    ? login/logout/register needs redesigning.
+      no session id available at that moment
++ we need to cache file_browse/gallery page somehow
+    + try to use FileAlternationMonitor to reset cache on changes
+    * delete thumbnails on picture update/delete
+* cache generated html pages
+    * remove cached files, when page is modified
++ gallery mode
++ sorting and paging
+* replace crlf in posts with <br>
+* make function for lua that outputs list of available articles in pages
++ ban host/ip/cidr
+* copy/move file
++ recheck
+    + upload
+    + new, validation fixed
++ file_browse, file_gallery. file paths needs to be escaped before passed
+    to link. file_gallery.fcgi?sort=name&order=asc&file_path=%2Ftemp%2F
+    eep eep                                     like this    ^^^    ^^^
++ add "Clear cache" button. HTML and Thumbnails separately
+
+== Release TODO — nncms 0.∞ ==
+* implement HEAD, send only modification date
+* do not send cached thumbnails, make redirection to a file via FastCGI
+* implement fcgi authorize role for files
+* add action buttons when viewing a html file
+* Search in files and in file contents
+* When creating new file or uploading a file, the new file may already exist,
+    ask user if he wants to replace it.
+    * show info about your file
+    * show info about file that already exists
+    ! user may compare them and decide what to do
+* Ticket/invite registration
+
+== Dirty hacked
+* more special functions for pages
+    * parse img tags: add height and weight
+    * figure tags: images from filesystem thumbnailed and with link
+    * math: latex, mathml or something else?
+        ? mathml
+    * gnuplot
+        ? static images
+

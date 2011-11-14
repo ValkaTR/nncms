@@ -1,0 +1,42 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Strict//EN">
+<html lang="ru">
+<head>
+    <title>[NNCMS]::[<?= title ?>]</title>
+    <meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+    <meta content="nncms" name="GENERATOR">
+    <link rel="stylesheet" type="text/css" href="/templates/style.css">
+    <link rel="shortcut icon" href="/favicon.ico">
+</head>
+<body bgcolor="#FFFFFF">
+
+<center><table cellpadding="5" cellspacing="0" width="100%" border="0">
+    <!--<tr><td colspan="2" align="center" valign="center" height="0">-->
+    <!--<img src="/nncms/nncmslogo.gif">-->
+    <!--</td></tr>-->
+    <tr>
+        <td width="200" align="center" valign="top">
+<!-- Navigation -->
+<?lua return load("blocks/navigation.html") ?>
+
+<!-- User block -->
+<?lua
+    if(var.guest == true) then
+        return login( )
+    else
+        return profile( )
+    end
+?>
+
+<!-- Admin -->
+<?lua return load("blocks/admin.html") ?>
+
+        </td>
+        <td align="center" valign="top"><?= content ?></td>
+    </tr>
+    <tr>
+        <td colspan="2" align="right" valign="center"><i><?= copyleft ?></i></td>
+    </tr>
+</table></center>
+
+</body>
+</html>

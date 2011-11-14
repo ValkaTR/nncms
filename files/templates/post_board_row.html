@@ -1,0 +1,18 @@
+<table cellpadding="5" cellspacing="0" border="0" width="100%">
+	<tr>
+        <td class="post" align="right" valign="top" rowspan="1" width="180">
+            [<b><a href="<?= homeURL ?>/user_view.fcgi?user_id=<?= user_id ?>"><?lua return escape_html(var.user_nick) ?></a></b>]<br>
+            <font color="#888888"><!-- Post №<?= post_id ?><br> -->
+            <?= post_timestamp ?></font>
+            <a href="<?= homeURL ?>/post_view.fcgi?post_id=<?= post_id ?>"><img src="<?= homeURL ?>/images/stock/net/stock_mail-open.png" width="16" height="16" alt="view" title="View post" border="0"></a>
+        </td>
+        <!-- <th height="32">
+
+
+            <?lua return escape_html(var.post_subject) ?>
+        </th>
+    </tr>
+	<tr class="post"> -->
+        <td class="post" style="border-left-style: dashed; border-width: thin; border-color: #C0C0C0;" align="left" valign="top"><?lua return escape_html(var.post_body) ?></td>
+    </tr>
+</table><br>

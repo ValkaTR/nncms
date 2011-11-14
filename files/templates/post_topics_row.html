@@ -1,0 +1,7 @@
+	<tr bgcolor="#FFFFFF">
+		<td><?= post_id ?></td>
+		<td><a href="<?= homeURL ?>/post_board.fcgi?post_id=<?= post_id ?>"> <img src="<?= homeURL ?>/images/stock/net/stock_mail-open.png" width="16" height="16" alt="view" title="View post" border="0"> <?lua return escape_html(var.post_subject) ?></a></td>
+		<td><a href="<?= homeURL ?>/user_view.fcgi?user_id=<?= user_id ?>"> <img src="<?= homeURL ?>/images/apps/system-users.png" width="16" height="16" alt="view" title="View user" border="0"> <?lua return escape_html(var.user_nick) ?></a></td>
+        <td><?= post_child_count ?></td>
+        <td><?= post_timestamp ?></td>
+	</tr>

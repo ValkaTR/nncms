@@ -1,0 +1,24 @@
+<form name="user_delete_form" action="<?= homeURL ?>/user_delete.fcgi?user_id=<?= user_id ?>" method="POST">
+    <table border="0" cellpadding="5" cellspacing="0" width="100%">
+    <tr>
+        <td width="30%" valign="top"><span class="varname">user_id</span><br><span class="vardesc">User unique number</span></td>
+        <td width="70%" valign="middle"><?= user_id ?></td>
+    </tr>
+    <tr>
+        <td width="30%" valign="top"><span class="varname">user_name</span><br><span class="vardesc">User login name</span></td>
+        <td width="70%" valign="middle"><a href="<?= homeURL ?>/user_view.fcgi?user_id=<?= user_id ?>"><?= user_name ?></a></td>
+    </tr>
+    <tr>
+        <td width="30%" valign="top"><span class="varname">user_nick</span><br><span class="vardesc">Enter nick name</span></td>
+        <td width="70%" valign="middle"><?= user_nick ?></td>
+    </tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">user_delete</span><br><span class="vardesc">Click on the button to delete user</span></td>
+		<td width="70%" valign="middle">
+			<input type="hidden" name="referer" value="<?lua return escape_html(var.referer) ?>">
+            <input type="hidden" name="fkey" value="<?= fkey ?>">
+			<input type="submit" name="user_delete" size="30" value="Delete user">
+		</td>
+	</tr>
+    </table>
+</form>

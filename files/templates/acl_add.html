@@ -1,0 +1,26 @@
+<form name="acl_add_form" action="<?= homeURL ?>/acl_add.fcgi" method="POST">
+    <table border="0" cellpadding="5" cellspacing="0" width="100%">
+	<tr>
+		<td width="30%" valign="top"><span class="varname">acl_object</span><br><span class="vardesc">ACL name</span></td>
+		<td width="70%" valign="middle"><input type="text" name="acl_object" size="30" value="<?= acl_object ?>"></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">acl_subject</span><br><span class="vardesc">Specify account who is given access</span></td>
+		<td width="70%" valign="middle"><input type="text" name="acl_subject" size="30" value="<?= acl_subject ?>"></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">acl_perm</span><br><span class="vardesc">List of granted permissions</span></td>
+		<td width="70%" valign="middle"><input type="text" name="acl_perm" size="30" value="<?= acl_perm ?>"></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">acl_add</span><br><span class="vardesc">Click on the button to add ACL</span></td>
+		<td width="70%" valign="middle">
+			<input type="hidden" name="referer" value="<?lua return escape_html(var.referer) ?>">
+			<input type="hidden" name="fkey" value="<?= fkey ?>">
+			<input type="submit" name="acl_add" size="30" value="Add ACL">
+		</td>
+	</tr>
+    </table>
+</form><br>
+
+<?lua return load("help/acl_help.html") ?>

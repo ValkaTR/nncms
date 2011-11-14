@@ -1,0 +1,24 @@
+<form name="ban_add_form" action="<?= homeURL ?>/ban_add.fcgi" method="POST">
+    <table border="0" cellpadding="5" cellspacing="0" width="100%">
+	<tr>
+		<td width="30%" valign="top"><span class="varname">ban_ip</span><br><span class="vardesc">IP address which is going to be blocked from website</span></td>
+		<td width="70%" valign="middle"><input type="text" name="ban_ip" size="30" value="<?= ban_ip ?>"></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">ban_mask</span><br><span class="vardesc">IP mask, the default one is for a single ban</span></td>
+		<td width="70%" valign="middle"><input type="text" name="ban_mask" size="30" value="255.255.255.255"></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">ban_reason</span><br><span class="vardesc">Type a reason of ban</span></td>
+		<td width="70%" valign="middle"><input type="text" name="ban_reason" size="30" value="<?= ban_reason ?>"></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">ban_add</span><br><span class="vardesc">Click on the button to add ban</span></td>
+		<td width="70%" valign="middle">
+			<input type="hidden" name="referer" value="<?lua return escape_html(var.referer) ?>">
+            <input type="hidden" name="fkey" value="<?= fkey ?>">
+			<input type="submit" name="ban_add" size="30" value="Add Ban">
+		</td>
+	</tr>
+    </table>
+</form><br>

@@ -1,0 +1,20 @@
+<form name="file_mkdir_form" action="<?= homeURL ?>/file_mkdir.fcgi?file_path=<?lua return escape_html(var.file_path) ?>" method="POST">
+	<table border="0" cellpadding="5" cellspacing="0" width="100%">
+	<tr>
+		<td width="30%" valign="top"><span class="varname">file_path</span><br><span class="vardesc">Folder where new folder will be created</span></td>
+		<td width="70%" valign="middle"><img src="<?= homeURL ?>/<?= file_icon ?>" width="16" height="16" alt="icon"> <?lua return escape_html(var.file_path) ?></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">file_name</span><br><span class="vardesc">Folder name</span></td>
+		<td width="70%" valign="middle"><input type="text" name="file_name" size="30" value="<?lua return escape_html(var.file_name) ?>"></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><span class="varname">file_mkdir</span><br><span class="vardesc">Click on the button to add folder</span></td>
+		<td width="70%" valign="middle">
+			<input type="hidden" name="referer" value="<?lua return escape_html(var.referer) ?>">
+            <input type="hidden" name="fkey" value="<?= fkey ?>">
+			<input type="submit" name="file_mkdir" size="30" value="Add folder">
+		</td>
+	</tr>
+	</table>
+</form>

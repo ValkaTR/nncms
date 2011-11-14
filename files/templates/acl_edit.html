@@ -1,0 +1,30 @@
+<form name="acl_edit_form" action="<?= homeURL ?>/acl_edit.fcgi?acl_id=<?= acl_id ?>" method="POST">
+	<table border="0" cellpadding="5" cellspacing="0" width="100%">
+	<tr>
+		<td width="30%" valign="top"><b>acl_id</b><br><font color="#888888">ACL unique number</font></td>
+		<td width="70%" valign="middle"><?= acl_id ?></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><b>acl_object</b><br><font color="#888888">ACL object</font></td>
+		<td width="70%" valign="middle"><input type="text" name="acl_object" size="30" value="<?= acl_object ?>"></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><b>acl_subject</b><br><font color="#888888">Specify account who is given access</font></td>
+		<td width="70%" valign="middle"><input type="text" name="acl_subject" size="30" value="<?= acl_subject ?>"></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><b>acl_perm</b><br><font color="#888888">List of granted permissions</font></td>
+		<td width="70%" valign="middle"><input type="text" name="acl_perm" size="30" value="<?= acl_perm ?>"></td>
+	</tr>
+	<tr>
+		<td width="30%" valign="top"><b>acl_edit</b><br><font color="#888888">Click on the button to apply</font></td>
+		<td width="70%" valign="middle">
+			<input type="hidden" name="referer" value="<?lua return escape_html(var.referer) ?>">
+            <input type="hidden" name="fkey" value="<?= fkey ?>">
+			<input type="submit" name="acl_edit" size="30" value="Edit ACL">
+		</td>
+	</tr>
+    </table>
+</form><br>
+
+<?lua return load("help/acl_help.html") ?>

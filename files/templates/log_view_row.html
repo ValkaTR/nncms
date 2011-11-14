@@ -1,0 +1,9 @@
+	<tr bgcolor="<?= log_bgcolor ?>">
+		<td><font color="<?= log_fgcolor ?>"><?= log_id ?></font></td>
+		<td><font color="<?= log_fgcolor ?>"><img src="<?= homeURL ?>/<?= log_icon ?>" width="16" height="16" alt="<?= log_priority ?>" title="<?= log_priority ?>"> <?= log_priority ?></font></td>
+		<td><font color="<?= log_fgcolor ?>"><a href="<?= homeURL ?>/log_view.fcgi?log_id=<?= log_id ?>"><?lua return escape_html(var.log_text) ?></a></font></td>
+		<td><font color="<?= log_fgcolor ?>"><?= log_timestamp ?></font></td>
+		<td><a href="<?= homeURL ?>/user_view.fcgi?user_id=<?= log_user_id ?>"><?lua return escape_html(var.log_user_nick) ?></a> <font color="<?= log_fgcolor ?>">(</font><a href="<?= homeURL ?>/nncms.fcgi?page=user_view&amp;id=<?= log_user_id ?>"><?= log_user_name ?></a><font color="<?= log_fgcolor ?>">)</font></td>
+		<!--<td><?= log_user_host ?></td>-->
+		<!--<td><?= log_uri ?></td>-->
+	</tr>

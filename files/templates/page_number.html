@@ -1,0 +1,1 @@
+<a href="<?= homeURL ?>/file_gallery.fcgi?file_path=<?lua return escape_uri(var.file_path) ?>&amp;page=<?= page_number ?>&amp;sort=<?= sort ?>&amp;order=<?= order ?>"><?= page_number ?></a><?lua if( var.page_number ~= var.page_total ) then return "," end ?>

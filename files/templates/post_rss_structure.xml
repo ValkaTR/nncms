@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+        <title>[NNCMS]::[Message Board]</title>
+        <subtitle><?lua return escape_html(var.post_subject) ?></subtitle>
+        <link href="<?= homeURL ?>/post_rss.fcgi?post_id=<?= post_id ?>" rel="self" />
+        <link href="<?= homeURL ?>" />
+        <id>urn:uuid:1337-<?= post_id ?></id>
+        <updated><?= post_timestamp ?></updated>
+        <author>
+                <name><?lua return escape_html(var.user_nick) ?></name>
+        </author>
+
+<?= entries ?>
+</feed>
