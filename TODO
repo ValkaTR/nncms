@@ -293,6 +293,8 @@ _/      _/  _/      _/    _/_/  _/      _/    _/_/
     + add columns in sessions for client ip and agent
     + recheck data
     * ban cookie stealers
+* temporary guest sessions, so that guest can post and edit/delete _own_
+    posts while he retains the session number. It may be quite long.
 + preventing CSRF and XSRF attacks
     + acl, ban, file, log, post, user
     ? login/logout/register needs redesigning.
@@ -315,6 +317,108 @@ _/      _/  _/      _/    _/_/  _/      _/    _/_/
     to link. file_gallery.fcgi?sort=name&order=asc&file_path=%2Ftemp%2F
     eep eep                                     like this    ^^^    ^^^
 + add "Clear cache" button. HTML and Thumbnails separately
++ node system like in drupal
+    + fields
+    + node_view
+        + edit button
+        + delete button
+    * comments (with post module?)
+    - i18n: translate button
+    ? if language not found, then show available
+    + list revisions
+    + view revisions
+    + node_delete
+        + delete revisions
+        + delete field data of this node
+        + delete field data of revisions
+    + node_type_add
+        - needs filters for 'type' and 'name'
+        how to make validation? manually or with template forms somehow?
+        drupal seems to be using validation hooks in modules
+        ? the template array will be filled before 'submit button check'
+        and every field will have own verify function/setting
+        then there will be template_verify, which uses the class to verify
+        it with request
+    + node_type_edit
+    + node_type_fields
+    + node_field_delete
+        * when field is deleted, then delete data too
+    + node_type_delete
+        * when type deleted: delete all nodes and fields associated to it
+* user folders for upload
++ update message system: messages are stored in log file and reported on any page (like drupal)
+    * make better design of log_message.html
+? page to choice what to do after file uploaded: file_upload_done.html
+    - browse folder
+    - view file
+    - edit acl, edit file and other action stuff
+    - ...
+* links to copy paste at view image
+    - direct link
+    - thumbnailed direct link
+    - html code with link <a href ..><img src...>...
+    - thumbnailed html code
++ template system improvements
+    + table generator
+        + template files for tables
+        * html escape option
+        + improve performance by using GSList or whatever for rows and cells
+        */ or allow to override internal page counter and limit rows during db query (COUNT(*)/LIMIT/OFFSET)
+    + form generator (why the fuck i made forms in html?)
+        * html escape option
+        + make 'print' command for lua scripting instead of weird 'return'
+            * replace old returns to print
+            * remove 'print via return' functionality
+        + update old html forms
+            * acl
+            * ban ...
+- convert mime into GHashTable
++ convert funcPage into GHashTable
+* store options in lua and retrieve variables in init functions
+- remove hardcoded html code from <?= image_thumbnail ?>
++ multilanguage / i18n
+    * improve detector: by ip, by user-agent, by user-preference
+    - node_list.html
+        --
+        <p>Viewing nodes with type id <?= node_type_id ?>.</p>
+        --
+        In drupal:
+        $t_args = array('%property' => $filters[$type]['title'], '%value' => $value);
+        $form['filters']['current'][] = array('#markup' => t('and where %property is %value', $t_args));
+        --
+        Maybe do something like this:
+        <p><?lua i18n_string( req, "node_list_header_text" ); ?></p>
+        --
+        The string will be executed in template engine with lua and
+        all variables will be available. Scripting will allow to make
+        nice plural support: 1 user online, 2 users online, not
+        5 user(s) online.
+    + i18n_advanced_string in C - it will accept variables and allow
+        lua scripting
++ table editor in database module
+    + convert timestamps into dates
+    + add new row
+    + locales_source: translations column
+    + filter/search/find
+    + sorting
+    + pager
+- migrate to glib database?
+    - pragma table_info there is
++ convert templates to GHashTable and add all templates from init!
+    + template_form
+    - all other
+    + remove iparse, parse functions
++ memory profiler
+    - distinguish between cached and garbage data
+    - thread safe
++ database_vquery fix to not use req->firstRow, do sqlite3_prepare and call database_steps
++ new pik-pik design
++ template_field_* template_form_* table_* -> field.c, form.c, table.c
++ field_validate
+* add weight and config to field_data
+* clickable tags to view_id with tag filter
+* add <summary></summary> to textfield
+* field_config:textfield - implement 'format': wiki, html+lua
 
 == Release TODO — nncms 0.∞ ==
 * implement HEAD, send only modification date
