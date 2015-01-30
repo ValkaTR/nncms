@@ -13,10 +13,9 @@
 // rofl includes of system headers
 //
 
-#include "config.h"
-
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include <string.h>
 #include <signal.h>
@@ -27,14 +26,19 @@
 #  include <sys/time.h>
 #endif
 
+#include <glib.h>
+
 // #############################################################################
 // includes of local headers
 //
 
-#include "main.h"
-#include "smart.h"
-#include "tree.h"
 #include "threadinfo.h"
+//#include "main.h"
+#include "smart.h"
+
+#include "form.h"
+#include "field.h"
+#include "table.h"
 
 // #############################################################################
 
@@ -47,130 +51,63 @@
 
 #define NNCMS_TAG_NAME_MAX_SIZE 64
 
-struct NNCMS_TEMPLATE_TAGS
+struct NNCMS_LINK
 {
-    char szName[NNCMS_TAG_NAME_MAX_SIZE];     // [String] Search this tag
-    char *szValue;                            // [Pointer] And replace it with this value
-    //struct NNCMS_TEMPLATE_TAGS *next;    // [Pointer] Pointer to next structure
+    char *function;
+    char *title;
+    struct NNCMS_VARIABLE *vars;
 };
+
+// #############################################################################
 
 // Path to tempates
 extern char templateDir[NNCMS_PATH_LEN_MAX];
+
+// Default number of items per page
+extern int default_pager_quantity;
 
 // #############################################################################
 // function declarations
 //
 
 // Module
-bool template_init( struct NNCMS_THREAD_INFO *req );
-bool template_deinit( struct NNCMS_THREAD_INFO *req );
+bool template_global_init( );
+bool template_global_destroy( );
+bool template_local_init( struct NNCMS_THREAD_INFO *req );
+bool template_local_destroy( struct NNCMS_THREAD_INFO *req );
 
 void lua_stackdump( lua_State *L );
 
-// For fast access to templates
-enum TEMPLATE_INDEX
-{
-    TEMPLATE_ACL_ADD = 0,
-    TEMPLATE_ACL_DELETE,
-    TEMPLATE_ACL_EDIT,
-    TEMPLATE_ACL_OBJECT_FOOT,
-    TEMPLATE_ACL_OBJECT_HEAD,
-    TEMPLATE_ACL_OBJECT_ROW,
-    TEMPLATE_ACL_VIEW_FOOT,
-    TEMPLATE_ACL_VIEW_HEAD,
-    TEMPLATE_ACL_VIEW_ROW,
-    TEMPLATE_BAN_ADD,
-    TEMPLATE_BAN_VIEW,
-    TEMPLATE_BAN_VIEW_ROW,
-    TEMPLATE_BAN_VIEW_STRUCTURE,
-    TEMPLATE_BAN_EDIT,
-    TEMPLATE_BAN_DELETE,
-    TEMPLATE_BLOCK,
-    TEMPLATE_CACHE_ADMIN,
-    TEMPLATE_CFG_EDIT,
-    TEMPLATE_CFG_VIEW_FOOT,
-    TEMPLATE_CFG_VIEW_HEAD,
-    TEMPLATE_CFG_VIEW_ROW,
-    TEMPLATE_FILE_ADD,
-    TEMPLATE_FILE_BROWSER_DIR,
-    TEMPLATE_FILE_BROWSER_FILE,
-    TEMPLATE_FILE_BROWSER_FOOT,
-    TEMPLATE_FILE_BROWSER_HEAD,
-    TEMPLATE_FILE_DELETE,
-    TEMPLATE_FILE_EDIT,
-    TEMPLATE_FILE_MKDIR,
-    TEMPLATE_FILE_RENAME,
-    TEMPLATE_FILE_UPLOAD,
-    TEMPLATE_FORM,
-    TEMPLATE_FRAME,
-    TEMPLATE_GALLERY_DIR,
-    TEMPLATE_GALLERY_EMPTY,
-    TEMPLATE_GALLERY_FILE,
-    TEMPLATE_GALLERY_IMAGE,
-    TEMPLATE_GALLERY_ROW,
-    TEMPLATE_GALLERY_STRUCTURE,
-    TEMPLATE_LOG_CLEAR,
-    TEMPLATE_LOG_VIEW_FOOT,
-    TEMPLATE_LOG_VIEW_HEAD,
-    TEMPLATE_LOG_VIEW,
-    TEMPLATE_LOG_VIEW_ROW,
-    TEMPLATE_PAGE_CURRENT,
-    TEMPLATE_PAGE_NUMBER,
-    TEMPLATE_POST_ADD,
-    TEMPLATE_POST_BOARD_ROW,
-    TEMPLATE_POST_BOARD_STRUCTURE,
-    TEMPLATE_POST_DELETE,
-    TEMPLATE_POST_EDIT,
-    TEMPLATE_POST_MODIFY,
-    TEMPLATE_POST_NEWS_ROW,
-    TEMPLATE_POST_NEWS_STRUCTURE,
-    TEMPLATE_POST_PARENT,
-    TEMPLATE_POST_REMOVE,
-    TEMPLATE_POST_REPLY,
-    TEMPLATE_POST_ROOT,
-    TEMPLATE_POST_RSS_ENTRY,
-    TEMPLATE_POST_RSS_STRUCTURE,
-    TEMPLATE_POST_VIEW,
-    TEMPLATE_POST_TOPICS_ROW,
-    TEMPLATE_POST_TOPICS_STRUCTURE,
-    TEMPLATE_REDIRECT,
-    TEMPLATE_STRUCTURE,
-    TEMPLATE_USER_BLOCK,
-    TEMPLATE_USER_DELETE,
-    TEMPLATE_USER_EDIT,
-    TEMPLATE_USER_LOGIN,
-    TEMPLATE_USER_PROFILE,
-    TEMPLATE_USER_REGISTER,
-    TEMPLATE_USER_SESSIONS_FOOT,
-    TEMPLATE_USER_SESSIONS_HEAD,
-    TEMPLATE_USER_SESSIONS_ROW,
-    TEMPLATE_USER_VIEW_FOOT,
-    TEMPLATE_USER_VIEW_HEAD,
-    TEMPLATE_USER_VIEW,
-    TEMPLATE_USER_VIEW_ROW,
-    TEMPLATE_VIEW_FILE,
-    TEMPLATE_VIEW_GALLERY_CELL,
-    TEMPLATE_VIEW_GALLERY_ROW_BEGIN,
-    TEMPLATE_VIEW_GALLERY_ROW_END,
-    TEMPLATE_VIEW_GALLERY_TABLE_BEGIN,
-    TEMPLATE_VIEW_GALLERY_TABLE_END,
-    TEMPLATE_VIEW_IMAGE
-};
-
 // This fuction parses template file and template structure
 // it replaces tags in structure with its data in template file
-size_t template_parse( struct NNCMS_THREAD_INFO *req,
-    const char *szFileName, char *szBuffer, size_t nLen,
-    struct NNCMS_TEMPLATE_TAGS *templateTags );
-size_t template_sparse( struct NNCMS_THREAD_INFO *req,
-    char *lpName, char *pTemplate, char *szBuffer, size_t nLen,
-    struct NNCMS_TEMPLATE_TAGS *templateTags );
-size_t template_iparse( struct NNCMS_THREAD_INFO *req,
-    enum TEMPLATE_INDEX tempNum, char *szBuffer, size_t nLen,
-    struct NNCMS_TEMPLATE_TAGS *templateTags );
+size_t template_sparse( struct NNCMS_THREAD_INFO *req, char *template_name, char *template_data, GString *buffer, struct NNCMS_VARIABLE *template_tags );
+size_t template_hparse( struct NNCMS_THREAD_INFO *req, char *template_name, GString *buffer, struct NNCMS_VARIABLE *template_tags );
 
-char *template_escape_html( char *lpszSource );
+//
+// Generators
+//
+
+// Extra functions
+char *template_links( struct NNCMS_THREAD_INFO *req, struct NNCMS_LINK *links );
+struct NNCMS_FORM *template_confirm( struct NNCMS_THREAD_INFO *req, char *name );
+
+char *template_escape_html( char *src );
 char *template_escape_uri( char *lpszSource );
+
+// LUA functions
+static int template_lua_load( lua_State *L );
+static int template_lua_parse( lua_State *L );
+static int template_lua_print( lua_State *L );
+static int template_lua_escape_html( lua_State *L );
+static int template_lua_escape_uri( lua_State *L );
+static int template_lua_escape_js( lua_State *L );
+static int template_lua_acl( lua_State *L );
+static int template_lua_post_acl( lua_State *L );
+static int template_lua_file_acl( lua_State *L );
+static int template_lua_login( lua_State *L );
+static int template_lua_profile( lua_State *L );
+static int template_lua_i18n_string( lua_State *L );
+
 
 // #############################################################################
 

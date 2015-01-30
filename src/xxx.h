@@ -12,13 +12,14 @@
 // includes of system headers
 //
 
-#include "config.h"
-
 #include <stdbool.h>
 
 // #############################################################################
 // includes of local headers
 //
+
+#include "threadinfo.h"
+#include "database.h"
 
 // #############################################################################
 
@@ -29,13 +30,36 @@
 // type and constant definitions
 //
 
+struct NNCMS_XXX_ROW
+{
+    char *col_name[NNCMS_COLUMNS_MAX];
+    
+    char *id;
+    char *data;
+    char *value[NNCMS_COLUMNS_MAX - 2];
+    
+    struct NNCMS_ROW *next; // BC
+};
+
 // #############################################################################
 // function declarations
 //
 
 // Modular functions
-bool xxx_init( );
-bool xxx_deinit( );
+bool xxx_global_init( );
+bool xxx_global_destroy( );
+bool xxx_local_init( struct NNCMS_THREAD_INFO *req );
+bool xxx_local_destroy( struct NNCMS_THREAD_INFO *req );
+
+// Pages
+void xxx_list( struct NNCMS_THREAD_INFO *req );
+void xxx_add( struct NNCMS_THREAD_INFO *req );
+void xxx_edit( struct NNCMS_THREAD_INFO *req );
+void xxx_view( struct NNCMS_THREAD_INFO *req );
+void xxx_delete( struct NNCMS_THREAD_INFO *req );
+
+// Functions
+char *xxx_links( struct NNCMS_THREAD_INFO *req, char *xxx_id );
 
 // #############################################################################
 

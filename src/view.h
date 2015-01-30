@@ -13,8 +13,6 @@
 // rofl includes of system headers
 //
 
-#include "config.h"
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -50,30 +48,111 @@
 // type and constant definitions
 //
 
+extern struct NNCMS_VARIABLE view_format_list[];
+
 #define THUMBNAIL_WIDTH_MAX      640
 #define THUMBNAIL_WIDTH_MIN      32
 #define THUMBNAIL_HEIGTH_MAX     480
 #define THUMBNAIL_HEIGTH_MIN     32
 
+struct NNCMS_VIEWS_ROW
+{
+    char *col_name[NNCMS_COLUMNS_MAX];
+    
+    char *id;
+    char *name;
+    char *format;
+    char *header;
+    char *footer;
+    char *pager_items;
+    char *value[NNCMS_COLUMNS_MAX - 6];
+    
+    struct NNCMS_ROW *next; // BC
+};
+
+struct NNCMS_VIEWS_FILTER_ROW
+{
+    char *col_name[NNCMS_COLUMNS_MAX];
+    
+    char *id;
+    char *view_id;
+    char *field_id;
+    char *operator;
+    char *data;
+    char *data_exposed;
+    char *filter_exposed;
+    char *operator_exposed;
+    char *required ;
+    char *value[NNCMS_COLUMNS_MAX - 9];
+    
+    struct NNCMS_ROW *next; // BC
+};
+
+struct NNCMS_VIEWS_SORT_ROW
+{
+    char *col_name[NNCMS_COLUMNS_MAX];
+    
+    char *id;
+    char *view_id;
+    char *field_id;
+    char *direction;
+    char *value[NNCMS_COLUMNS_MAX - 4];
+    
+    struct NNCMS_ROW *next; // BC
+};
+
+struct NNCMS_FIELD_VIEW_ROW
+{
+    char *col_name[NNCMS_COLUMNS_MAX];
+    
+    char *id;
+    char *view_id;
+    char *field_id;
+    char *label;
+    char *empty_hide;
+    char *config;
+    char *weight;
+    char *value[NNCMS_COLUMNS_MAX - 7];
+    
+    struct NNCMS_ROW *next; // BC
+};
+
 // #############################################################################
 // function declarations
 //
 
+// Modular functions
+bool view_global_init( );
+bool view_global_destroy( );
+bool view_local_init( struct NNCMS_THREAD_INFO *req );
+bool view_local_destroy( struct NNCMS_THREAD_INFO *req );
+
 // Pages
-void view_show( struct NNCMS_THREAD_INFO *req );
-void view_thumbnail( struct NNCMS_THREAD_INFO *req );
+void view_list( struct NNCMS_THREAD_INFO *req );
+void view_add( struct NNCMS_THREAD_INFO *req );
+void view_edit( struct NNCMS_THREAD_INFO *req );
+void view_view( struct NNCMS_THREAD_INFO *req );
+void view_delete( struct NNCMS_THREAD_INFO *req );
 
-void view_advanced_parse( struct NNCMS_THREAD_INFO *req,
-    char *lpszSrc, size_t nSrcLen,
-    char *lpszDst, size_t nDstLen );
-struct NNCMS_ATTRIBUTE *view_decode_attributes( struct NNCMS_THREAD_INFO *req, char *lpszAttributes );
-size_t view_math( struct NNCMS_THREAD_INFO *req, char *lpszDst, size_t nDstLen, char *lpszExpression );
-void hex_dump( unsigned char *dst, unsigned int dst_size,
-               unsigned char *src, unsigned int src_size );
+void field_view_list( struct NNCMS_THREAD_INFO *req );
+void field_view_add( struct NNCMS_THREAD_INFO *req );
+void field_view_edit( struct NNCMS_THREAD_INFO *req );
+void field_view_view( struct NNCMS_THREAD_INFO *req );
+void field_view_delete( struct NNCMS_THREAD_INFO *req );
 
-// Aux functions
-void view_force_cache( struct NNCMS_THREAD_INFO *req );
-void view_iw_exception( struct NNCMS_THREAD_INFO *req, MagickWand *wand, char *lpszError, char *lpBuf );
+void view_filter_list( struct NNCMS_THREAD_INFO *req );
+void view_filter_add( struct NNCMS_THREAD_INFO *req );
+void view_filter_edit( struct NNCMS_THREAD_INFO *req );
+void view_filter_view( struct NNCMS_THREAD_INFO *req );
+void view_filter_delete( struct NNCMS_THREAD_INFO *req );
+
+// Functions
+char *view_links( struct NNCMS_THREAD_INFO *req, char *view_id );
+
+// Pages
+void view_display( struct NNCMS_THREAD_INFO *req );
+
+void view_prepare_fields( struct NNCMS_THREAD_INFO *req, struct NNCMS_FIELD *fields, char *view_id );
 
 // #############################################################################
 

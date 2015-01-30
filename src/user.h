@@ -13,7 +13,7 @@
 // rofl includes of system headers
 //
 
-#include <config.h>
+
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -44,36 +44,78 @@
 // type and constant definitions
 //
 
+extern char *guest_user_id;
+extern char *guest_user_name;
+extern char *guest_user_nick;
+extern char **guest_user_groups;
+
+extern char userDir[];
+extern char avatarDir[];
+
 #define NNCMS_NICKNAME_LEN          128
 #define NNCMS_PASSWORD_LEN          256
 #define NNCMS_EMAIL_LEN             128
 #define NNCMS_SESSION_ID_LEN        128
+
+struct NNCMS_USER_ROW
+{
+    char *col_name[NNCMS_COLUMNS_MAX];
+
+    char *id;
+    char *name;
+    char *nick;
+    char *group;
+    char *hash;
+    char *avatar;
+    char *folder_id;
+    char *value[NNCMS_COLUMNS_MAX - 7];
+    
+    struct NNCMS_ROW *next; // BC
+};
+
+struct NNCMS_SESSION_ROW
+{
+    char *col_name[NNCMS_COLUMNS_MAX];
+
+    char *id;
+    char *user_id;
+    char *user_name;
+    char *user_agent;
+    char *remote_addr;
+    char *timestamp;
+    char *value[NNCMS_COLUMNS_MAX - 6];
+    
+    struct NNCMS_ROW *next; // BC
+};
 
 // #############################################################################
 // function declarations
 //
 
 // Module
-bool user_init( struct NNCMS_THREAD_INFO *req );
-bool user_deinit( struct NNCMS_THREAD_INFO *req );
-
-// Functions
-char *user_block( struct NNCMS_THREAD_INFO *req );
+bool user_global_init( );
+bool user_global_destroy( );
+bool user_local_init( struct NNCMS_THREAD_INFO *req );
+bool user_local_destroy( struct NNCMS_THREAD_INFO *req );
 
 // Pages
 void user_register( struct NNCMS_THREAD_INFO *req ); // Registration page
 void user_login( struct NNCMS_THREAD_INFO *req ); // Login page
 void user_logout( struct NNCMS_THREAD_INFO *req );
 void user_sessions( struct NNCMS_THREAD_INFO *req );
+void user_list( struct NNCMS_THREAD_INFO *req );
 void user_view( struct NNCMS_THREAD_INFO *req );
-void user_profile( struct NNCMS_THREAD_INFO *req );
+void user_avatar( struct NNCMS_THREAD_INFO *req );
 void user_edit( struct NNCMS_THREAD_INFO *req );
 void user_delete( struct NNCMS_THREAD_INFO *req );
 
 // Session
+char *user_generate_session( struct NNCMS_THREAD_INFO *req );
 void user_check_session( struct NNCMS_THREAD_INFO *req );
 void user_reset_session( struct NNCMS_THREAD_INFO *req );
 bool user_xsrf( struct NNCMS_THREAD_INFO *req );
+
+char *user_links( struct NNCMS_THREAD_INFO *req, char *user_id );
 
 // #############################################################################
 // variables

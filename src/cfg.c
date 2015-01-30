@@ -19,6 +19,7 @@
 #include "acl.h"
 #include "log.h"
 #include "smart.h"
+#include "i18n.h"
 
 #include "strlcpy.h"
 #include "strlcat.h"
@@ -53,116 +54,309 @@
 // global variables
 //
 
+struct NNCMS_CFG_FIELDS
+{
+    struct NNCMS_FIELD cfg_id;
+    struct NNCMS_FIELD cfg_name;
+    struct NNCMS_FIELD cfg_value;
+    struct NNCMS_FIELD cfg_type;
+    struct NNCMS_FIELD cfg_lpmem;
+    struct NNCMS_FIELD referer;
+    struct NNCMS_FIELD fkey;
+    struct NNCMS_FIELD cfg_edit;
+    struct NNCMS_FIELD none;
+}
+cfg_fields =
+{
+    { .name = "cfg_id", .value = NULL, .data = NULL, .type = NNCMS_FIELD_EDITBOX, .values_count = 1, .editable = false, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "cfg_name", .value = NULL, .data = NULL, .type = NNCMS_FIELD_EDITBOX, .values_count = 1, .editable = false, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "cfg_value", .value = NULL, .data = NULL, .type = NNCMS_FIELD_EDITBOX, .values_count = 1, .editable = true, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "cfg_type", .value = NULL, .data = NULL, .type = NNCMS_FIELD_EDITBOX, .values_count = 1, .editable = false, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "cfg_lpmem", .value = NULL, .data = NULL, .type = NNCMS_FIELD_EDITBOX, .values_count = 1, .editable = false, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "referer", .value = NULL, .data = NULL, .type = NNCMS_FIELD_HIDDEN, .values_count = 1, .editable = false, .viewable = true, .text_name = "", .text_description = "" },
+    { .name = "fkey", .value = NULL, .data = NULL, .type = NNCMS_FIELD_HIDDEN, .values_count = 1, .editable = false, .viewable = true, .text_name = "", .text_description = "" },
+    { .name = "cfg_edit", .value = NULL, .data = NULL, .type = NNCMS_FIELD_SUBMIT, .editable = false, .viewable = true, .text_name = NULL, .text_description = "" },
+    { .type = NNCMS_FIELD_NONE }
+};
+
 // #############################################################################
 // functions
 
-void cfg_view( struct NNCMS_THREAD_INFO *req )
+// #############################################################################
+
+bool cfg_global_init( )
+{
+    bool bCfgLoaded = 0;
+
+    bCfgLoaded |= cfg_parse_file( "/etc/nncms.conf", g_options );
+    bCfgLoaded |= cfg_parse_file( "nncms.conf", g_options );
+
+    // Check homeURL
+    size_t nHomeUrlLen = strlen( homeURL );
+    nHomeUrlLen--;
+    if( homeURL[nHomeUrlLen] == '/' )
+        homeURL[nHomeUrlLen] = 0;
+
+    main_page_add( "cfg_list", &cfg_list );
+    main_page_add( "cfg_view", &cfg_view );
+    main_page_add( "cfg_edit", &cfg_edit );
+
+    return bCfgLoaded;
+}
+
+// #############################################################################
+
+bool cfg_global_destroy( )
+{
+    return true;
+}
+
+// #############################################################################
+
+void cfg_list( struct NNCMS_THREAD_INFO *req )
 {
     // Page header
-    char *szHeader = "Configuration view";
-
-    // Specify values for template
-    struct NNCMS_TEMPLATE_TAGS frameTemplate[] =
-        {
-            { /* szName */ "header", /* szValue */ szHeader },
-            { /* szName */ "content",  /* szValue */ req->lpszBuffer },
-            { /* szName */ "icon",  /* szValue */ "images/apps/utilities-terminal.png" },
-            { /* szName */ "homeURL",  /* szValue */ homeURL },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-    struct NNCMS_TEMPLATE_TAGS cfgTemplate[] =
-        {
-            { /* szName */ "homeURL", /* szValue */ homeURL },
-            { /* szName */ "cfg_id", /* szValue */ 0 },
-            { /* szName */ "cfg_name", /* szValue */ 0 },
-            { /* szName */ "cfg_value", /* szValue */ 0 },
-            { /* szName */ "cfg_type", /* szValue */ 0 },
-            { /* szName */ "cfg_lpmem", /* szValue */ 0 },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-
-    // Create smart buffers
-    struct NNCMS_BUFFER smartBuffer =
-        {
-            /* lpBuffer */ req->lpszBuffer,
-            /* nSize */ NNCMS_PAGE_SIZE_MAX,
-            /* nPos */ 0
-        };
-    *smartBuffer.lpBuffer = 0;
-
-    // Check session
-    user_check_session( req );
+    char *header_str = i18n_string_temp( req, "cfg_list_header", NULL );
 
     // First we check what permissions do user have
-    if( acl_check_perm( req, "cfg", req->g_username, "view" ) == false )
+    if( acl_check_perm( req, "cfg", NULL, "view" ) == false )
     {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Not allowed";
-        log_printf( req, LOG_NOTICE, "Config::View: %s", frameTemplate[1].szValue );
-        goto output;
-    }
+        main_vmessage( req, "not_allowed" );
+        return;
+    }    
 
-    // Header template
-    template_iparse( req, TEMPLATE_CFG_VIEW_HEAD, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, 0 );
-    smart_cat( &smartBuffer, req->lpszFrame );
+    // Header cells
+    struct NNCMS_TABLE_CELL header_cells[] =
+    {
+        { .value = i18n_string_temp( req, "cfg_id_name", NULL ), .type = NNCMS_TYPE_STRING, .options = NULL },
+        { .value = i18n_string_temp( req, "cfg_name_name", NULL ), .type = NNCMS_TYPE_STRING, .options = NULL },
+        { .value = i18n_string_temp( req, "cfg_value_name", NULL ), .type = NNCMS_TYPE_STRING, .options = NULL },
+        { .value = i18n_string_temp( req, "cfg_type_name", NULL ), .type = NNCMS_TYPE_STRING, .options = NULL },
+        { .value = i18n_string_temp( req, "cfg_lpmem_name", NULL ), .type = NNCMS_TYPE_STRING, .options = NULL },
+        { .value = "", .type = NNCMS_TYPE_STRING, .options = NULL },
+        { .value = "", .type = NNCMS_TYPE_STRING, .options = NULL },
+        { .type = NNCMS_TYPE_NONE }
+    };
 
     // Loop thru all rows
+    GArray *gcells = g_array_new( TRUE, FALSE, sizeof(struct NNCMS_TABLE_CELL) );
+    garbage_add( req->loop_garbage, gcells, MEMORY_GARBAGE_GARRAY_FREE );
     for( unsigned int i = 0; i < NNCMS_CFG_OPTIONS_MAX; i++ )
     {
         // Skip empty config entries
         if( g_options[i].lpMem == 0 ) break;
 
         // Fill template values
-        char szId[64]; sprintf( szId, "%u", i );
-        cfgTemplate[1].szValue = szId;
-        cfgTemplate[2].szValue = g_options[i].szName;
+        int cfg_id = i;
+        char *cfg_name = g_options[i].name;
+        void *cfg_lpmem = g_options[i].lpMem;
+
+        // Soft type convert
+        union NNCMS_VARIABLE_UNION cfg_value;
+        enum NNCMS_VARIABLE_TYPE cfg_type;
+        char *cfg_type_name;
         switch( g_options[i].nType )
         {
             case NNCMS_INTEGER:
             {
-                char szCfgValue[64]; sprintf( szCfgValue, "%i", *(int *) g_options[i].lpMem );
-                cfgTemplate[3].szValue = szCfgValue;
-                cfgTemplate[4].szValue = "Integer";
+                cfg_value.integer = *(int *) g_options[i].lpMem;
+                cfg_type = NNCMS_TYPE_INTEGER;
+                cfg_type_name = "Integer";
                 break;
             }
             case NNCMS_STRING:
             {
-                cfgTemplate[3].szValue = g_options[i].lpMem;
-                cfgTemplate[4].szValue = "String";
+                cfg_value.string = (char *) g_options[i].lpMem;
+                cfg_type = TEMPLATE_TYPE_UNSAFE_STRING;
+                cfg_type_name = "String";
                 break;
             }
             case NNCMS_BOOL:
             {
-                if( *(bool *) g_options[i].lpMem == true )
-                {
-                    cfgTemplate[3].szValue = "True";
-                }
-                else if( *(bool *) g_options[i].lpMem == false )
-                {
-                    cfgTemplate[3].szValue = "False";
-                }
-                cfgTemplate[4].szValue = "Boolean";
+                cfg_value.boolean = *(bool *) g_options[i].lpMem;
+                cfg_type = NNCMS_TYPE_BOOL;
+                cfg_type_name = "Boolean";
                 break;
             }
         }
-        char szLpMem[64]; sprintf( szLpMem, "%08Xh", (unsigned int) g_options[i].lpMem );
-        cfgTemplate[5].szValue = szLpMem;
 
-        // Parse one row
-        template_iparse( req, TEMPLATE_CFG_VIEW_ROW, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, cfgTemplate );
-        smart_cat( &smartBuffer, req->lpszFrame );
+        // Actions
+        char *link;
+        struct NNCMS_VARIABLE vars[] =
+        {
+            { .name = "cfg_id", .value.integer = cfg_id, NNCMS_TYPE_INTEGER },
+            { .type = NNCMS_TYPE_NONE }
+        };
+
+        char *view = main_temp_link( req, "cfg_view", i18n_string_temp( req, "view", NULL ), vars );
+        char *edit = main_temp_link( req, "cfg_edit", i18n_string_temp( req, "edit", NULL ), vars );
+
+        // Data
+        struct NNCMS_TABLE_CELL cells[] =
+        {
+            { .value.integer = cfg_id, .type = NNCMS_TYPE_INTEGER, .options = NULL },
+            { .value.string = cfg_name, .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .value = cfg_value, .type = cfg_type, .options = NULL },
+            { .value.string = cfg_type_name, .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .value.pmem = cfg_lpmem, .type = NNCMS_TYPE_MEM, .options = NULL },
+            { .value.string = view, .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .value.string = edit, .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .type = NNCMS_TYPE_NONE }
+        };
+
+        g_array_append_vals( gcells, &cells, sizeof(cells) / sizeof(struct NNCMS_TABLE_CELL) - 1 );
+
     }
 
-    // Footer template
-    template_iparse( req, TEMPLATE_CFG_VIEW_FOOT, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, 0 );
-    smart_cat( &smartBuffer, req->lpszFrame );
+    // Create a table
+    struct NNCMS_TABLE table =
+    {
+        .caption = NULL,
+        .header_html = NULL, .footer_html = NULL,
+        .options = NULL,
+        .cellpadding = NULL, .cellspacing = NULL,
+        .border = NULL, .bgcolor = NULL,
+        .width = NULL, .height = NULL,
+        .row_count = gcells->len / (sizeof(header_cells) / sizeof(struct NNCMS_TABLE_CELL) - 1),
+        .column_count = sizeof(header_cells) / sizeof(struct NNCMS_TABLE_CELL) - 1,
+        .pager_quantity = 0, .pages_displayed = 0,
+        .headerz = header_cells,
+        .cells = (struct NNCMS_TABLE_CELL *) gcells->data
+    };
 
-output:
+    // Html output
+    char *html = table_html( req, &table );
+
+    // Generate links
+    char *links = cfg_links( req, NULL );
+
+    // Specify values for template
+    struct NNCMS_VARIABLE frame_template[] =
+        {
+            { .name = "header", .value.string = header_str, .type = NNCMS_TYPE_STRING },
+            { .name = "content", .value.string = html, .type = NNCMS_TYPE_STRING },
+            { .name = "icon", .value.string = "images/apps/utilities-terminal.png", .type = NNCMS_TYPE_STRING },
+            { .name = "homeURL", .value.string = homeURL, .type = NNCMS_TYPE_STRING },
+            { .name = "links", .value.string = links, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE } // Terminating row
+        };
+
     // Make a cute frame
-    template_iparse( req, TEMPLATE_FRAME, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, frameTemplate );
+    template_hparse( req, "frame.html", req->frame, frame_template );
 
     // Send generated html to client
-    main_output( req, szHeader, req->lpszFrame, 0 );
+    main_output( req, header_str, req->frame->str, 0 );
+}
+
+// #############################################################################
+
+bool cfg_parse_buffer( struct NNCMS_THREAD_INFO *req, char *buffer, struct NNCMS_VARIABLE *vars )
+{
+    // All Lua contexts are held in this structure. We work with it almost
+    // all the time.
+    lua_State *L = req->L; //luaL_newstate( );
+    if( L == NULL )
+    {
+        log_print( 0, LOG_CRITICAL, "Cannot create state: not enough memory" );
+        return false;
+    }
+
+    // Load Lua libraries
+    //luaL_openlibs( L );
+
+    // Load script in buffer
+    int load_result = luaL_loadbuffer( L, buffer, strlen(buffer), "cfg_parse_buffer" );
+    if( load_result != 0 )
+    {
+        // Get error string
+        char *stack_msg = (char *) lua_tostring( L, -1 );
+        lua_pop( L, 1 );
+        log_printf( 0, LOG_ERROR, "Lua loading error: %s", stack_msg );
+
+        return false;
+    }
+
+    // Call the script
+    int pcall_result = lua_pcall( L, 0, 0, 0 );
+    if( pcall_result != 0 )
+    {
+        // Get error string
+        char *stack_msg = (char *) lua_tostring( L, -1 );
+        lua_pop( L, 1 );
+        log_printf( 0, LOG_ERROR, "Lua calling error: %s", stack_msg );
+
+        return false;
+    }
+    
+    // Check if all is ok
+    int stack_top = lua_gettop( L );
+    if( stack_top != 0 )
+    {
+        log_printf( 0, LOG_EMERGENCY, "Lua stack is not empty, position %i", stack_top );
+
+        // Debug
+        lua_stackdump( L );
+
+        // Empty the stack
+        lua_settop( L, 0 );
+    }
+
+    // Ok, loop thru all options getting data from lua
+    for( unsigned int i = 0; vars != NULL && vars[i].type != NNCMS_TYPE_NONE; i = i + 1 )
+    {
+        // Pushes onto the stack the value
+        lua_getglobal( L, vars[i].name );
+
+        // If variable is not defined
+        //if( lua_isnil( L, 1 ) )
+        //{
+        //    lua_pop( L, 1 );
+        //    continue;
+        //}
+
+        // Option found, check it's type
+        switch( vars[i].type )
+        {
+            case NNCMS_TYPE_INTEGER:
+            {
+                // Convert string to integer
+                lua_Integer value = lua_tointeger( L, 1 );
+                vars[i].value.integer = value;
+                break;
+            }
+            case NNCMS_TYPE_PMEM:
+            {
+                size_t len;
+                const char *value = lua_tolstring( L, 1, &len );
+                * ((char **) vars[i].value.pmem) = memdup_temp( req, (void *) value, len );
+                break;
+            }
+            case NNCMS_TYPE_STRING:
+            {
+                size_t len;
+                const char *value = lua_tolstring( L, 1, &len );
+                vars[i].value.string = memdup_temp( req, (void *) value, len );
+                break;
+            }
+            case NNCMS_TYPE_BOOL:
+            {
+                int value = lua_toboolean( L, 1 );
+                vars[i].value.boolean = value;
+                break;
+            }
+            default:
+            {
+                log_print( req, LOG_WARNING, "Unknow option type" );
+            }
+        }
+
+        lua_pop( L, 1 );
+    }
+
+    // Cya, Lua
+    //lua_close( L );
+    
+    return true;
 }
 
 // #############################################################################
@@ -194,7 +388,7 @@ bool cfg_parse_file( const char *lpszFileName, struct NNCMS_OPTION *lpOptions )
 
     // Close the file associated with the specified pFile stream after flushing
     // all buffers associated with it.
-    fclose (pFile);
+    fclose( pFile );
 
     //
     // The whole file is loaded in the buffer.
@@ -206,7 +400,8 @@ bool cfg_parse_file( const char *lpszFileName, struct NNCMS_OPTION *lpOptions )
     lua_State *L = luaL_newstate( );
     if( L == NULL )
     {
-        log_printf( 0, LOG_CRITICAL, "Cfg::ParseFile: Cannot create state: not enough memory" );
+        log_print( 0, LOG_CRITICAL, "Cannot create state: not enough memory" );
+        FREE( szTemp );
         return false;
     }
 
@@ -214,26 +409,28 @@ bool cfg_parse_file( const char *lpszFileName, struct NNCMS_OPTION *lpOptions )
     luaL_openlibs( L );
 
     // Call a script
-    int nLoadResult = luaL_loadbuffer( L, szTemp, lSize, "cfg" );
-    if( nLoadResult == 0 )
+    int load_result = luaL_loadbuffer( L, szTemp, lSize, "cfg_parse_file" );
+    if( load_result == 0 )
     {
         lua_pcall( L, 0, LUA_MULTRET, 0 );
     }
     else
     {
         // Get error string
-        char *lpStackMsg = (char *) lua_tostring( L, -1 );
+        char *stack_msg = (char *) lua_tostring( L, -1 );
         lua_pop( L, 1 );
-        log_printf( 0, LOG_ERROR, "Cfg::ParseFile: Lua error: %s", lpStackMsg );
+        log_printf( 0, LOG_ERROR, "Lua error: %s", stack_msg );
         lua_close( L );
+        
+        FREE( szTemp );
         return false;
     }
 
     // Check if all is ok
-    int luaStackTop = lua_gettop( L );
-    if( luaStackTop != 0 )
+    int stack_top = lua_gettop( L );
+    if( stack_top != 0 )
     {
-        log_printf( 0, LOG_EMERGENCY, "Cfg::ParseFile: Lua stack is not empty, position %i", luaStackTop );
+        log_printf( 0, LOG_EMERGENCY, "Lua stack is not empty, position %i", stack_top );
 
         // Debug
         lua_stackdump( L );
@@ -246,12 +443,12 @@ bool cfg_parse_file( const char *lpszFileName, struct NNCMS_OPTION *lpOptions )
     for( unsigned int i = 0; i < NNCMS_CFG_OPTIONS_MAX; i++ )
     {
         // Terminating option
-        if( lpOptions[i].szName[0] == 0 ) break;
+        if( lpOptions[i].name[0] == 0 ) break;
         if( lpOptions[i].lpMem == 0 )
             goto error;
 
         // Pushes onto the stack the value
-        lua_getfield( L, LUA_GLOBALSINDEX, lpOptions[i].szName );
+        lua_getglobal( L, lpOptions[i].name );
 
         // If variable is not defined in configuration file
         if( lua_isnil( L, 1 ) )
@@ -269,7 +466,7 @@ bool cfg_parse_file( const char *lpszFileName, struct NNCMS_OPTION *lpOptions )
             }
             case NNCMS_STRING:
             {
-                char *szVarValue = lua_tostring( L, 1 );
+                const char *szVarValue = lua_tostring( L, 1 );
                 strcpy( (char *) lpOptions[i].lpMem, szVarValue );
                 break;
             }
@@ -281,7 +478,7 @@ bool cfg_parse_file( const char *lpszFileName, struct NNCMS_OPTION *lpOptions )
             }
             default:
             {
-                log_printf( 0, LOG_EMERGENCY, "Cfg::ParseFile: Unknow option type" );
+                log_print( 0, LOG_EMERGENCY, "Unknow option type" );
                 goto error;
             }
         }
@@ -292,11 +489,13 @@ next:
 
     // Cya, Lua
     lua_close( L );
+    FREE( szTemp );
     return true;
 
 error:
     // Error
     lua_close( L );
+    FREE( szTemp );
     return false;
 }
 
@@ -305,180 +504,382 @@ error:
 // Edit cfg
 void cfg_edit( struct NNCMS_THREAD_INFO *req )
 {
-    // Page header
-    char *szHeader = "Edit config";
-
-    // Specify values for template
-    struct NNCMS_TEMPLATE_TAGS frameTemplate[] =
-        {
-            { /* szName */ "header", /* szValue */ szHeader },
-            { /* szName */ "content",  /* szValue */ req->lpszBuffer },
-            { /* szName */ "icon",  /* szValue */ "images/apps/utilities-terminal.png" },
-            { /* szName */ "homeURL",  /* szValue */ homeURL },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-    struct NNCMS_TEMPLATE_TAGS editTemplate[] =
-        {
-            { /* szName */ "referer", /* szValue */ FCGX_GetParam( "HTTP_REFERER", req->fcgi_request->envp ) },
-            { /* szName */ "homeURL", /* szValue */ homeURL },
-            { /* szName */ "cfg_id", /* szValue */ 0 },
-            { /* szName */ "cfg_name", /* szValue */ 0 },
-            { /* szName */ "cfg_value", /* szValue */ 0 },
-            { /* szName */ "cfg_type", /* szValue */ 0 },
-            { /* szName */ "cfg_lpmem", /* szValue */ 0 },
-            { /* szName */ "fkey", /* szValue */ 0 },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-
-    // Check session
-    user_check_session( req );
-    editTemplate[3].szValue = req->g_sessionid;
-
     // First we check what permissions do user have
-    if( acl_check_perm( req, "cfg", req->g_username, "edit" ) == false )
+    if( acl_check_perm( req, "cfg", NULL, "edit" ) == false )
     {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Not allowed";
-        log_printf( req, LOG_NOTICE, "Config::Edit: %s", frameTemplate[1].szValue );
-        goto output;
+        main_vmessage( req, "not_allowed" );
+        return;
     }
 
     // Get id
-    struct NNCMS_VARIABLE *httpVarId = main_get_variable( req, "cfg_id" );
+    char *httpVarId = main_variable_get( req, req->get_tree, "cfg_id" );
     if( httpVarId == 0 )
     {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "No id specified";
-        log_printf( req, LOG_NOTICE, "Cfg::Edit: %s", frameTemplate[1].szValue );
-        goto output;
+        main_vmessage( req, "no_data" );
+        return;
     }
 
     // Check boundary
-    unsigned int nCfgId = atoi( httpVarId->lpszValue );
-    if( nCfgId > NNCMS_CFG_OPTIONS_MAX )
+    unsigned int nCfgId = atoi( httpVarId );
+    if( nCfgId >= NNCMS_CFG_OPTIONS_MAX )
     {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Out of limits";
-        log_printf( req, LOG_NOTICE, "Cfg::Edit: %s", frameTemplate[1].szValue );
-        goto output;
+        main_vmessage( req, "no_data" );
+        return;
     }
 
     // Is id known?
     if( g_options[nCfgId].lpMem == 0 )
     {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Unknown config id";
-        log_printf( req, LOG_NOTICE, "Cfg::Edit: %s", frameTemplate[1].szValue );
-        goto output;
+        main_vmessage( req, "no_data" );
+        return;
     }
+
+    // Page header
+    struct NNCMS_VARIABLE vars[] =
+    {
+        { .name = "cfg_name", .value.string = g_options[nCfgId].name, .type = NNCMS_TYPE_STRING },
+        { .type = NNCMS_TYPE_NONE }
+    };
+    char *header_str = i18n_string_temp( req, "cfg_edit_header", vars );
+
+    //
+    // Form
+    //
+    struct NNCMS_CFG_FIELDS *fields = memdup_temp( req, &cfg_fields, sizeof(cfg_fields) );
+    fields->referer.value = req->referer;
+    fields->fkey.value = req->session_id;
+    fields->cfg_edit.viewable = true;
 
     //
     // Check if user commit changes
     //
-    struct NNCMS_VARIABLE *httpVarEdit = main_get_variable( req, "cfg_edit" );
+    char *httpVarEdit = main_variable_get( req, req->post_tree, "cfg_edit" );
     if( httpVarEdit != 0 )
     {
         // Anti CSRF / XSRF vulnerabilities
         if( user_xsrf( req ) == false )
         {
-            frameTemplate[0].szValue = "Error";
-            frameTemplate[1].szValue = "Unequal keys";
-            goto output;
+            main_vmessage( req, "xsrf_fail" );
+            return;
         }
 
-        // Get new data
-        struct NNCMS_VARIABLE *httpVarValue = main_get_variable( req, "cfg_value" );
-        if( httpVarValue == 0 )
+        // Get POST data
+        form_post_data( req, (struct NNCMS_FIELD *) fields );
+        
+        // Validate
+        bool field_valid = field_validate( req, (struct NNCMS_FIELD *) fields );
+        if( field_valid == true )
         {
-            frameTemplate[0].szValue = "Error";
-            frameTemplate[1].szValue = "No data";
-            log_printf( req, LOG_ERROR, "Cfg::Edit: %s", frameTemplate[1].szValue );
-            goto output;
-        }
-
-        // Apply changes
-        switch( g_options[nCfgId].nType )
-        {
-            case NNCMS_INTEGER:
+            // Apply changes
+            switch( g_options[nCfgId].nType )
             {
-                *(int *) g_options[nCfgId].lpMem = atoi( httpVarValue->lpszValue );
-                break;
-            }
-            case NNCMS_STRING:
-            {
-                strlcpy( g_options[nCfgId].lpMem, httpVarValue->lpszValue, NNCMS_PATH_LEN_MAX );
-                break;
-            }
-            case NNCMS_BOOL:
-            {
-                if( strcasecmp( httpVarValue->lpszValue, "1" ) == 0 ||
-                    strcasecmp( httpVarValue->lpszValue, "true" ) == 0 )
+                case NNCMS_INTEGER:
                 {
-                    *(bool *) g_options[nCfgId].lpMem = true;
+                    *(int *) g_options[nCfgId].lpMem = atoi( fields->cfg_value.value );
+                    break;
                 }
-                else if( strcasecmp( httpVarValue->lpszValue, "0" ) == 0 ||
-                         strcasecmp( httpVarValue->lpszValue, "false" ) == 0 )
+                case NNCMS_STRING:
                 {
-                    *(bool *) g_options[nCfgId].lpMem = false;
+                    strlcpy( g_options[nCfgId].lpMem, fields->cfg_value.value, NNCMS_PATH_LEN_MAX );
+                    break;
                 }
-                break;
+                case NNCMS_BOOL:
+                {
+                    if( strcasecmp( fields->cfg_value.value, "1" ) == 0 ||
+                        strcasecmp( fields->cfg_value.value, "true" ) == 0 )
+                    {
+                        *(bool *) g_options[nCfgId].lpMem = true;
+                    }
+                    else if( strcasecmp( fields->cfg_value.value, "0" ) == 0 ||
+                             strcasecmp( fields->cfg_value.value, "false" ) == 0 )
+                    {
+                        *(bool *) g_options[nCfgId].lpMem = false;
+                    }
+                    break;
+                }
             }
+
+            // Log action
+            struct NNCMS_VARIABLE vars[] =
+            {
+                { .name = "cfg_name", .value.string = g_options[nCfgId].name, .type = NNCMS_TYPE_STRING },
+                { .name = "cfg_value", .value.string = fields->cfg_value.value, .type = TEMPLATE_TYPE_UNSAFE_STRING },
+                { .type = NNCMS_TYPE_NONE }
+            };
+            log_vdisplayf( req, LOG_ACTION, "cfg_edit_success", vars );
+            log_printf( req, LOG_ACTION, "Config parameter '%s' set to '%s'", g_options[nCfgId].name, fields->cfg_value.value );
+
+            // Redirect back
+            redirect_to_referer( req );
+            return;
         }
-
-        // Log action
-        log_printf( req, LOG_ACTION, "Cfg::Edit: Editted \"%s\" variable", g_options[nCfgId].szName);
-
-        // Redirect back
-        redirect_to_referer( req );
-        return;
     }
 
-    // Set template data
-    editTemplate[2].szValue = httpVarId->lpszValue;
-    editTemplate[3].szValue = g_options[nCfgId].szName;
+    // Fill template values
+    char *cfg_id = httpVarId;
+    char *cfg_name = g_options[nCfgId].name;
+    void *cfg_lpmem = g_options[nCfgId].lpMem;
+
+    // Soft type convert
+    union NNCMS_VARIABLE_UNION cfg_value;
+    enum NNCMS_VARIABLE_TYPE cfg_type;
+    char *cfg_type_text;
     switch( g_options[nCfgId].nType )
     {
         case NNCMS_INTEGER:
         {
-            char szCfgValue[64]; sprintf( szCfgValue, "%i", *(int *) g_options[nCfgId].lpMem );
-            editTemplate[4].szValue = szCfgValue;
-            editTemplate[5].szValue = "Integer";
+            cfg_value.integer = *(int *) g_options[nCfgId].lpMem;
+            cfg_type = NNCMS_TYPE_INTEGER;
+            cfg_type_text = "Integer";
             break;
         }
         case NNCMS_STRING:
         {
-            editTemplate[4].szValue = g_options[nCfgId].lpMem;
-            editTemplate[5].szValue = "String";
+            cfg_value.string = (char *) g_options[nCfgId].lpMem;
+            cfg_type = TEMPLATE_TYPE_UNSAFE_STRING;
+            cfg_type_text = "String";
             break;
         }
         case NNCMS_BOOL:
         {
-            if( *(bool *) g_options[nCfgId].lpMem == true )
-            {
-                editTemplate[4].szValue = "True";
-
-            }
-            else if( *(bool *) g_options[nCfgId].lpMem == false )
-            {
-                editTemplate[4].szValue = "False";
-            }
-            editTemplate[5].szValue = "Boolean";
+            cfg_value.boolean = *(bool *) g_options[nCfgId].lpMem;
+            cfg_type = NNCMS_TYPE_BOOL;
+            cfg_type_text = "Boolean";
             break;
         }
     }
-    char szLpMem[64]; sprintf( szLpMem, "%08Xh", (unsigned int) g_options[nCfgId].lpMem );
-    editTemplate[6].szValue = szLpMem;
+    char *cfg_value_text = main_type( req, cfg_value, cfg_type );
+    garbage_add( req->loop_garbage, cfg_value_text, MEMORY_GARBAGE_GFREE );
+    char *cfg_lpmem_text = main_type( req, (union NNCMS_VARIABLE_UNION) { .pmem = cfg_lpmem }, NNCMS_TYPE_MEM );
+    garbage_add( req->loop_garbage, cfg_lpmem_text, MEMORY_GARBAGE_GFREE );
 
-    // Load editor
-    template_iparse( req, TEMPLATE_CFG_EDIT, req->lpszBuffer, NNCMS_PAGE_SIZE_MAX, editTemplate );
-    //strlcpy( req->lpszBuffer, req->lpszFrame, NNCMS_PAGE_SIZE_MAX );
+    // Generate links
+    char *links = cfg_links( req, cfg_id );
 
-output:
-    // Generate the page
-    template_iparse( req, TEMPLATE_FRAME, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, frameTemplate );
+    //
+    // Fill form with data
+    fields->cfg_id.value = cfg_id;
+    fields->cfg_name.value = cfg_name;
+    fields->cfg_value.value = cfg_value_text;
+    fields->cfg_type.value = cfg_type_text;
+    fields->cfg_lpmem.value = cfg_lpmem_text;
+
+    struct NNCMS_FORM form =
+    {
+        .name = "cfg_edit", .action = NULL, .method = "POST",
+        .title = NULL, .help = NULL,
+        .header_html = NULL, .footer_html = NULL,
+        .fields = (struct NNCMS_FIELD *) fields
+    };
+
+    // Html output
+    char *html = form_html( req, &form );
+
+    // Specify values for template
+    struct NNCMS_VARIABLE frame_template[] =
+        {
+            { .name = "header", .value.string = header_str, .type = NNCMS_TYPE_STRING },
+            { .name = "content", .value.string = html, .type = NNCMS_TYPE_STRING },
+            { .name = "icon", .value.string = "images/apps/utilities-terminal.png", .type = NNCMS_TYPE_STRING },
+            { .name = "homeURL", .value.string = homeURL, .type = NNCMS_TYPE_STRING },
+            { .name = "links", .value.string = links, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE } // Terminating row
+        };
+
+    // Make a cute frame
+    template_hparse( req, "frame.html", req->frame, frame_template );
 
     // Send generated html to client
-    main_output( req, szHeader, req->lpszFrame, 0 );
+    main_output( req, header_str, req->frame->str, 0 );
+}
+
+// #############################################################################
+
+void cfg_view( struct NNCMS_THREAD_INFO *req )
+{
+    // First we check what permissions do user have
+    if( acl_check_perm( req, "cfg", NULL, "view" ) == false )
+    {
+        main_vmessage( req, "not_allowed" );
+        return;
+    }
+
+    // Get id
+    char *httpVarId = main_variable_get( req, req->get_tree, "cfg_id" );
+    if( httpVarId == 0 )
+    {
+        main_vmessage( req, "no_data" );
+        return;
+    }
+
+    // Check boundary
+    unsigned int nCfgId = atoi( httpVarId );
+    if( nCfgId >= NNCMS_CFG_OPTIONS_MAX )
+    {
+        main_vmessage( req, "no_data" );
+        return;
+    }
+
+    // Is id known?
+    if( g_options[nCfgId].lpMem == 0 )
+    {
+        main_vmessage( req, "no_data" );
+        return;
+    }
+
+    // Page header
+    struct NNCMS_VARIABLE vars[] =
+    {
+        { .name = "cfg_name", .value.string = g_options[nCfgId].name, .type = NNCMS_TYPE_STRING },
+        { .type = NNCMS_TYPE_NONE }
+    };
+    char *header_str = i18n_string_temp( req, "cfg_view_header", NULL );
+
+    //
+    // Fill template values
+    //
+    char *cfg_id = httpVarId;
+    char *cfg_name = g_options[nCfgId].name;
+    void *cfg_lpmem = g_options[nCfgId].lpMem;
+
+    // Soft type convert
+    union NNCMS_VARIABLE_UNION cfg_value;
+    enum NNCMS_VARIABLE_TYPE cfg_type;
+    char *cfg_type_text;
+    switch( g_options[nCfgId].nType )
+    {
+        case NNCMS_INTEGER:
+        {
+            cfg_value.integer = *(int *) g_options[nCfgId].lpMem;
+            cfg_type = NNCMS_TYPE_INTEGER;
+            cfg_type_text = "Integer";
+            break;
+        }
+        case NNCMS_STRING:
+        {
+            cfg_value.string = (char *) g_options[nCfgId].lpMem;
+            cfg_type = TEMPLATE_TYPE_UNSAFE_STRING;
+            cfg_type_text = "String";
+            break;
+        }
+        case NNCMS_BOOL:
+        {
+            cfg_value.boolean = *(bool *) g_options[nCfgId].lpMem;
+            cfg_type = NNCMS_TYPE_BOOL;
+            cfg_type_text = "Boolean";
+            break;
+        }
+    }
+    char *cfg_value_text = main_type( req, cfg_value, cfg_type );
+    garbage_add( req->loop_garbage, cfg_value_text, MEMORY_GARBAGE_GFREE );
+    char *cfg_lpmem_text = main_type( req, (union NNCMS_VARIABLE_UNION) { .pmem = cfg_lpmem }, NNCMS_TYPE_MEM );
+    garbage_add( req->loop_garbage, cfg_lpmem_text, MEMORY_GARBAGE_GFREE );
+
+    // Generate links
+    char *links = cfg_links( req, cfg_id );
+
+    //
+    // Form
+    //
+    struct NNCMS_CFG_FIELDS *fields = memdup_temp( req, &cfg_fields, sizeof(cfg_fields) );
+    fields->cfg_id.value = cfg_id;
+    fields->cfg_name.value = cfg_name;
+    fields->cfg_value.value = cfg_value_text;
+    fields->cfg_type.value = cfg_type_text;
+    fields->cfg_lpmem.value = cfg_lpmem_text;
+    fields->cfg_value.editable = false;
+    fields->referer.viewable = false;
+    fields->fkey.viewable = false;
+    fields->cfg_edit.viewable = false;
+
+    struct NNCMS_FORM form =
+    {
+        .name = "cfg_view", .action = NULL, .method = NULL,
+        .title = NULL, .help = NULL,
+        .header_html = NULL, .footer_html = NULL,
+        .fields = (struct NNCMS_FIELD *) fields
+    };
+
+    // Html output
+    char *html = form_html( req, &form );
+
+    // Specify values for template
+    struct NNCMS_VARIABLE frame_template[] =
+        {
+            { .name = "header", .value.string = header_str, .type = NNCMS_TYPE_STRING },
+            { .name = "content", .value.string = html, .type = NNCMS_TYPE_STRING },
+            { .name = "icon", .value.string = "images/apps/utilities-terminal.png", .type = NNCMS_TYPE_STRING },
+            { .name = "homeURL", .value.string = homeURL, .type = NNCMS_TYPE_STRING },
+            { .name = "links", .value.string = links, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE } // Terminating row
+        };
+
+    // Make a cute frame
+    template_hparse( req, "frame.html", req->frame, frame_template );
+
+    // Send generated html to client
+    main_output( req, header_str, req->frame->str, 0 );
+}
+
+// #############################################################################
+
+char *cfg_links( struct NNCMS_THREAD_INFO *req, char *cfg_id )
+{
+    struct NNCMS_VARIABLE vars[] =
+    {
+        { .name = "cfg_id", .value.string = cfg_id, .type = NNCMS_TYPE_STRING },
+        { .type = NNCMS_TYPE_NONE }
+    };
+
+    // Create array for links
+    
+    struct NNCMS_LINK link =
+    {
+        .function = NULL,
+        .title = NULL,
+        .vars = NULL
+    };
+    
+    GArray *links = g_array_new( TRUE, FALSE, sizeof(struct NNCMS_LINK) );
+
+    // Fill the link array with links
+
+    link.function = "cfg_list";
+    link.title = i18n_string_temp( req, "list_link", NULL );
+    link.vars = NULL;
+    g_array_append_vals( links, &link, 1 );
+
+    //link.function = "cfg_add";
+    //link.title = i18n_string_temp( req, "add_link", NULL );
+    //link.vars = vars_object;
+    //g_array_append_vals( links, &link, 1 );
+
+    if( cfg_id != NULL )
+    {
+        link.function = "cfg_view";
+        link.title = i18n_string_temp( req, "view_link", NULL );
+        link.vars = vars;
+        g_array_append_vals( links, &link, 1 );
+
+        link.function = "cfg_edit";
+        link.title = i18n_string_temp( req, "edit_link", NULL );
+        link.vars = vars;
+        g_array_append_vals( links, &link, 1 );
+
+        //link.function = "cfg_delete";
+        //link.title = i18n_string_temp( req, "delete_link", NULL );
+        //link.vars = vars_id;
+        //g_array_append_vals( links, &link, 1 );
+    }
+
+    // Convert arrays to HTML code
+    char *html = template_links( req, (struct NNCMS_LINK *) links->data );
+    garbage_add( req->loop_garbage, html, MEMORY_GARBAGE_GFREE );
+
+    // Free array
+    g_array_free( links, TRUE );
+    
+    return html;
 }
 
 // #############################################################################

@@ -12,7 +12,7 @@
 // includes of system headers
 //
 
-#include "config.h"
+
 
 #include <string.h>
 #ifdef _WIN32
@@ -45,7 +45,7 @@
 struct NNCMS_CACHE
 {
     // Name of cache entry
-    char lpszName[NNCMS_PATH_LEN_MAX];
+    char name[NNCMS_PATH_LEN_MAX];
     time_t timeStamp;
 
     // Data info
@@ -58,14 +58,17 @@ struct NNCMS_CACHE
 // function declarations
 //
 
-bool cache_init( );
-bool cache_deinit( );
+bool cache_global_init( );
+bool cache_global_destroy( );
 
-void cache_recursive_monitor( FAMConnection *fc, char *path );
-static void *cache_fam( void *var );
+struct NNCMS_CACHE *cache_find_mem( struct NNCMS_THREAD_INFO *req, char *name );
+char *cache_find_file( struct NNCMS_THREAD_INFO *req, char *name );
+bool cache_access_file( struct NNCMS_THREAD_INFO *req, char *name );
+char *cache_find( struct NNCMS_THREAD_INFO *req, char *name );
 
-struct NNCMS_CACHE *cache_find( struct NNCMS_THREAD_INFO *req, char *lpszName );
-struct NNCMS_CACHE *cache_store( struct NNCMS_THREAD_INFO *req, char *lpszName, char *lpData, size_t nSize );
+struct NNCMS_CACHE *cache_store_mem( struct NNCMS_THREAD_INFO *req, char *name, char *lpData, size_t nSize );
+bool cache_store_file( struct NNCMS_THREAD_INFO *req, char *name, char *lpData, size_t nSize );
+struct NNCMS_CACHE *cache_store( struct NNCMS_THREAD_INFO *req, char *name, char *lpData, size_t nSize );
 
 // Pages
 void cache_admin( struct NNCMS_THREAD_INFO *req );

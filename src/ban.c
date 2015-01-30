@@ -20,6 +20,8 @@
 #include "acl.h"
 #include "log.h"
 #include "memory.h"
+#include "i18n.h"
+#include "filter.h"
 
 // #############################################################################
 // includes of system headers
@@ -33,31 +35,84 @@
 // global variables
 //
 
-// Log module status
-static bool b_ban = false;
+struct NNCMS_BAN_FIELDS
+{
+    struct NNCMS_FIELD ban_id;
+    struct NNCMS_FIELD ban_user_id;
+    struct NNCMS_FIELD ban_timestamp;
+    struct NNCMS_FIELD ban_ip;
+    struct NNCMS_FIELD ban_mask;
+    struct NNCMS_FIELD ban_reason;
+    struct NNCMS_FIELD referer;
+    struct NNCMS_FIELD fkey;
+    struct NNCMS_FIELD ban_add;
+    struct NNCMS_FIELD ban_edit;
+    struct NNCMS_FIELD none;
+}
+ban_fields =
+{
+    { .name = "ban_id", .value = NULL, .data = NULL, .type = NNCMS_FIELD_EDITBOX, .values_count = 1, .editable = false, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "ban_user_id", .value = NULL, .data = NULL, .type = NNCMS_FIELD_USER, .values_count = 1, .editable = false, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "ban_timestamp", .value = NULL, .data = NULL, .type = NNCMS_FIELD_TIMEDATE, .values_count = 1, .editable = false, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "ban_ip", .value = NULL, .data = NULL, .type = NNCMS_FIELD_EDITBOX, .values_count = 1, .editable = true, .viewable = true, .text_name = NULL, .text_description = NULL, .size_min = 1, .size_max = 50, .char_table = printable_validate },
+    { .name = "ban_mask", .value = "255.255.255.255", .data = NULL, .type = NNCMS_FIELD_EDITBOX, .values_count = 1, .editable = true, .viewable = true, .text_name = NULL, .text_description = NULL, .size_min = 1, .size_max = 50, .char_table = printable_validate },
+    { .name = "ban_reason", .value = NULL, .data = NULL, .type = NNCMS_FIELD_EDITBOX, .values_count = 1, .editable = true, .viewable = true, .text_name = NULL, .text_description = NULL, .size_min = 0, .size_max = 1000 },
+    { .name = "referer", .value = NULL, .data = NULL, .type = NNCMS_FIELD_HIDDEN, .values_count = 1, .editable = false, .viewable = true, .text_name = "", .text_description = "" },
+    { .name = "fkey", .value = NULL, .data = NULL, .type = NNCMS_FIELD_HIDDEN, .values_count = 1, .editable = false, .viewable = true, .text_name = "", .text_description = "" },
+    { .name = "ban_add", .value = NULL, .data = NULL, .type = NNCMS_FIELD_SUBMIT, .editable = false, .viewable = false, .text_name = NULL, .text_description = "" },
+    { .name = "ban_edit", .value = NULL, .data = NULL, .type = NNCMS_FIELD_SUBMIT, .editable = false, .viewable = false, .text_name = NULL, .text_description = "" },
+    { .type = NNCMS_FIELD_NONE }
+};
 
 // Ban list
-struct NNCMS_BAN_INFO *banList;
+struct NNCMS_BAN_INFO *banList = 0;
+
+// #############################################################################
+// function declarations
+
+bool ban_validate( struct NNCMS_THREAD_INFO *req, struct NNCMS_BAN_FIELDS *fields );
+char *ban_links( struct NNCMS_THREAD_INFO *req, char *ban_id );
 
 // #############################################################################
 // functions
 
-bool ban_init( struct NNCMS_THREAD_INFO *req )
+bool ban_global_init( )
+{
+    main_local_init_add( &ban_local_init );
+    main_local_destroy_add( &ban_local_destroy );
+
+    main_page_add( "ban_add", &ban_add );
+    main_page_add( "ban_list", &ban_list );
+    main_page_add( "ban_view", &ban_view );
+    main_page_add( "ban_edit", &ban_edit );
+    main_page_add( "ban_delete", &ban_delete );
+
+    return true;
+}
+
+// #############################################################################
+
+bool ban_global_destroy( )
+{
+    return true;
+}
+
+// #############################################################################
+
+bool ban_local_init( struct NNCMS_THREAD_INFO *req )
 {
     //if( b_ban == true ) return false;
     //b_ban = true;
 
     // Prepared statements
-    req->stmtAddBan = database_prepare( "INSERT INTO `bans` VALUES(null, ?, ?, ?, ?, ?)" );
-    req->stmtListBans = database_prepare( "SELECT `id`, `user_id`, `timestamp`, `ip`, `mask`, `reason` FROM `bans` ORDER BY `timestamp` ASC" );
-    req->stmtFindBanById = database_prepare( "SELECT `id`, `user_id`, `timestamp`, `ip`, `mask`, `reason` FROM `bans` WHERE `id`=?" );
-    req->stmtEditBan = database_prepare( "UPDATE `bans` SET `ip`=?, `mask`=?, `reason`=? WHERE `id`=?" );
-    req->stmtDeleteBan = database_prepare( "DELETE FROM `bans` WHERE `id`=?" );
+    req->stmt_add_ban = database_prepare( req, "INSERT INTO bans VALUES(null, ?, ?, ?, ?, ?)" );
+    req->stmt_list_bans = database_prepare( req, "SELECT id, user_id, timestamp, ip, mask, reason FROM bans ORDER BY timestamp ASC LIMIT ? OFFSET ?" );
+    req->stmt_find_ban_by_id = database_prepare( req, "SELECT id, user_id, timestamp, ip, mask, reason FROM bans WHERE id=?" );
+    req->stmt_edit_ban = database_prepare( req, "UPDATE bans SET ip=?, mask=?, reason=? WHERE id=?" );
+    req->stmt_delete_ban = database_prepare( req, "DELETE FROM bans WHERE id=?" );
 
     // Load bans only once, not for every thread
-    if( b_ban == false )
-        //ban_load( req );
-    b_ban = true;
+    //ban_load( req );
 
     // Test
     //struct in_addr addr;
@@ -69,19 +124,16 @@ bool ban_init( struct NNCMS_THREAD_INFO *req )
 
 // #############################################################################
 
-bool ban_deinit( struct NNCMS_THREAD_INFO *req )
+bool ban_local_destroy( struct NNCMS_THREAD_INFO *req )
 {
     // Free prepared statements
-    database_finalize( req->stmtAddBan );
-    database_finalize( req->stmtListBans );
-    database_finalize( req->stmtFindBanById );
-    database_finalize( req->stmtEditBan );
-    database_finalize( req->stmtDeleteBan );
+    database_finalize( req, req->stmt_add_ban );
+    database_finalize( req, req->stmt_list_bans );
+    database_finalize( req, req->stmt_find_ban_by_id );
+    database_finalize( req, req->stmt_edit_ban );
+    database_finalize( req, req->stmt_delete_ban );
 
-
-    if( b_ban == true )
-        ban_unload( req );
-    b_ban = false;
+    ban_unload( req );
 
     return true;
 }
@@ -90,24 +142,27 @@ bool ban_deinit( struct NNCMS_THREAD_INFO *req )
 
 void ban_load( struct NNCMS_THREAD_INFO *req )
 {
+    if( banList != 0 )
+        return;
+    
     //sleep(3);
     // Find rows
-    struct NNCMS_ROW *banRow = database_steps( req->stmtListBans );
+    struct NNCMS_ROW *ban_row = database_steps( req, req->stmt_list_bans );
 
     // No bans
-    if( banRow == 0 )
+    if( ban_row == 0 )
         return;
 
     // Loop thru all rows
-    struct NNCMS_ROW *curRow = banRow;
+    struct NNCMS_ROW *cur_row = ban_row;
     struct NNCMS_BAN_INFO *firstStruct = 0;
-    while( curRow )
+    while( cur_row )
     {
         // Prepare ban structure
         struct NNCMS_BAN_INFO *banStruct = MALLOC( sizeof(struct NNCMS_BAN_INFO) );
-        banStruct->id = atoi( curRow->szColValue[0] );
-        inet_aton( curRow->szColValue[3], &banStruct->ip );
-        inet_aton( curRow->szColValue[4], &banStruct->mask );
+        banStruct->id = atoi( cur_row->value[0] );
+        inet_aton( cur_row->value[3], &banStruct->ip );
+        inet_aton( cur_row->value[4], &banStruct->mask );
         banStruct->next = 0;
 
         // Sorted insert
@@ -165,11 +220,11 @@ next_row:
         //printf("\n");
 
         // Select next row
-        curRow = curRow->next;
+        cur_row = cur_row->next;
     }
 
     // Free memory from query result
-    database_freeRows( banRow );
+    database_free_rows( ban_row );
 
     // Finished, save the chain
     banList = firstStruct;
@@ -179,6 +234,9 @@ next_row:
 
 void ban_unload( struct NNCMS_THREAD_INFO *req )
 {
+    if( banList == 0 )
+        return;
+    
     // Remove bans from memory
     struct NNCMS_BAN_INFO *curStruct = banList;
     banList = 0;
@@ -203,7 +261,7 @@ bool ban_check( struct NNCMS_THREAD_INFO *req, struct in_addr *addr )
         if( (addr->s_addr & curStruct->mask.s_addr) ==
             (curStruct->ip.s_addr & curStruct->mask.s_addr) )
         {
-            log_printf( req, LOG_WARNING, "Ban::Check: Ip %u.%u.%u.%u hits the ban #%u (%u.%u.%u.%u/%u.%u.%u.%u)",
+            log_printf( req, LOG_WARNING, "Ip %u.%u.%u.%u hits the ban #%u (%u.%u.%u.%u/%u.%u.%u.%u)",
                 (addr->s_addr & (0x0FF << (8*0))) >> (8*0),
                 (addr->s_addr & (0x0FF << (8*1))) >> (8*1),
                 (addr->s_addr & (0x0FF << (8*2))) >> (8*2),
@@ -232,112 +290,222 @@ bool ban_check( struct NNCMS_THREAD_INFO *req, struct in_addr *addr )
 void ban_add( struct NNCMS_THREAD_INFO *req )
 {
     // Page header
-    char *szHeader = "Add Ban";
-
-    // Specify values for template
-    struct NNCMS_TEMPLATE_TAGS frameTemplate[] =
-        {
-            { /* szName */ "header", /* szValue */ szHeader },
-            { /* szName */ "content",  /* szValue */ req->lpszBuffer },
-            { /* szName */ "icon",  /* szValue */ "images/status/security-medium.png" },
-            { /* szName */ "homeURL",  /* szValue */ homeURL },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-    struct NNCMS_TEMPLATE_TAGS addTemplate[] =
-        {
-            { /* szName */ "referer", /* szValue */ 0 },
-            { /* szName */ "homeURL", /* szValue */ homeURL },
-            { /* szName */ "fkey", /* szValue */ 0 },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-
-    // Check session
-    user_check_session( req );
-    addTemplate[2].szValue = req->g_sessionid;
+    char *header_str = i18n_string_temp( req, "ban_add_header", NULL );
 
     // Check user permission to edit Bans
-    if( acl_check_perm( req, "ban", req->g_username, "add" ) == false )
+    if( acl_check_perm( req, "ban", NULL, "add" ) == false )
     {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Not allowed";
-        goto output;
+        main_message( req, "not_allowed" );
+        return;
     }
+
+    //
+    // Form
+    //
+    struct NNCMS_BAN_FIELDS *fields = memdup_temp( req, &ban_fields, sizeof(ban_fields) );
+    fields->ban_id.viewable = false;
+    fields->ban_timestamp.viewable = false;
+    fields->ban_user_id.value = req->user_id;
+    fields->referer.value = req->referer;
+    fields->fkey.value = req->session_id;
+    fields->ban_add.viewable = true;
+
+    struct NNCMS_FORM form =
+    {
+        .name = "ban_add", .action = NULL, .method = "POST",
+        .title = NULL, .help = NULL,
+        .header_html = NULL, .footer_html = NULL,
+        .fields = (struct NNCMS_FIELD *) fields
+    };
 
     //
     // Check if user commit changes
     //
-    struct NNCMS_VARIABLE *httpVarAdd = main_get_variable( req, "ban_add" );
-    if( httpVarAdd != 0 )
+    char *ban_add = main_variable_get( req, req->post_tree, "ban_add" );
+    if( ban_add != 0 )
     {
         // Anti CSRF / XSRF vulnerabilities
         if( user_xsrf( req ) == false )
         {
-            frameTemplate[0].szValue = "Error";
-            frameTemplate[1].szValue = "Unequal keys";
-            goto output;
+            main_message( req, "xsrf_fail" );
+            return;
         }
 
         // Get POST data
-        struct NNCMS_VARIABLE *httpVarIp = main_get_variable( req, "ban_ip" );
-        struct NNCMS_VARIABLE *httpVarMask = main_get_variable( req, "ban_mask" );
-        struct NNCMS_VARIABLE *httpVarReason = main_get_variable( req, "ban_reason" );
-        if( httpVarIp == 0 ||
-            httpVarMask == 0 ||
-            httpVarReason == 0 )
+        form_post_data( req, (struct NNCMS_FIELD *) fields );
+        
+        // Validate
+        bool field_valid = field_validate( req, (struct NNCMS_FIELD *) fields );
+        bool ban_valid = ban_validate( req, fields );
+        if( field_valid == true && ban_valid == true )
         {
-            frameTemplate[0].szValue = "Error";
-            frameTemplate[1].szValue = "No data";
-            log_printf( req, LOG_ERROR, "Ban::Add: %s", frameTemplate[1].szValue );
-            goto output;
-        }
+            // Query Database
+            database_bind_text( req->stmt_add_ban, 1, req->user_id );
+            database_bind_int( req->stmt_add_ban, 2, time( 0 ) );
+            database_bind_text( req->stmt_add_ban, 3, fields->ban_ip.value );
+            database_bind_text( req->stmt_add_ban, 4, fields->ban_mask.value );
+            database_bind_text( req->stmt_add_ban, 5, fields->ban_reason.value );
+            database_steps( req, req->stmt_add_ban );            
+            unsigned int ban_id = database_last_rowid( req );
 
-        // Check if address written correctly
-        struct in_addr addr;
-        if( inet_aton( httpVarIp->lpszValue, &addr ) == 0 )
+            struct NNCMS_VARIABLE vars[] =
+            {
+                { .name = "ban_id", .value.unsigned_integer = ban_id, .type = NNCMS_TYPE_UNSIGNED_INTEGER },
+                { .type = NNCMS_TYPE_NONE }
+            };
+            log_printf( req, LOG_ACTION, "Ban '%s' was added (id = %i)", fields->ban_ip.value, ban_id );
+            log_vdisplayf( req, LOG_ACTION, "ban_add_success", vars );
+
+            // Recache bans
+            ban_load( req );
+            ban_unload( req );
+
+            // Redirect back
+            redirect_to_referer( req );
+            return;
+        }
+    }
+
+    // Generate links
+    char *links = ban_links( req, NULL );
+
+    // Html output
+    char *html = form_html( req, &form );
+
+    // Specify values for template
+    struct NNCMS_VARIABLE frame_template[] =
         {
-            frameTemplate[0].szValue = "Error";
-            frameTemplate[1].szValue = "Invalid ip address";
-            log_printf( req, LOG_ERROR, "Ban::Add: %s", frameTemplate[1].szValue );
-            goto output;
-        }
-        if( inet_aton( httpVarMask->lpszValue, &addr ) == 0 )
-        {
-            frameTemplate[0].szValue = "Error";
-            frameTemplate[1].szValue = "Invalid mask address";
-            log_printf( req, LOG_ERROR, "Ban::Add: %s", frameTemplate[1].szValue );
-            goto output;
-        }
+            { .name = "header", .value.string = header_str, .type = NNCMS_TYPE_STRING },
+            { .name = "content", .value.string = html, .type = NNCMS_TYPE_STRING },
+            { .name = "icon", .value.string = "images/status/security-medium.png", .type = NNCMS_TYPE_STRING },
+            { .name = "homeURL", .value.string = homeURL, .type = NNCMS_TYPE_STRING },
+            { .name = "links", .value.string = links, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE } // Terminating row
+        };
 
-        // Query Database
-        database_bind_text( req->stmtAddBan, 1, req->g_userid );
-        database_bind_int( req->stmtAddBan, 2, time( 0 ) );
-        database_bind_text( req->stmtAddBan, 3, httpVarIp->lpszValue );
-        database_bind_text( req->stmtAddBan, 4, httpVarMask->lpszValue );
-        database_bind_text( req->stmtAddBan, 5, httpVarReason->lpszValue );
-        database_steps( req->stmtAddBan );
-        log_printf( req, LOG_ACTION, "Ban::Add: Added ban for ip %s", httpVarIp->lpszValue );
+    // Make a cute frame
+    template_hparse( req, "frame.html", req->frame, frame_template );
 
-        // Recache bans
-        ban_load( req );
-        ban_unload( req );
+    // Send generated html to client
+    main_output( req, header_str, req->frame->str, 0 );
+}
 
-        // Redirect back
-        redirect_to_referer( req );
+// #############################################################################
+
+void ban_list( struct NNCMS_THREAD_INFO *req )
+{
+    // First we check what permissions do user have
+    if( acl_check_perm( req, "ban", NULL, "list" ) == false )
+    {
+        main_vmessage( req, "not_allowed" );
         return;
     }
 
-    // Referer
-    addTemplate[0].szValue = FCGX_GetParam( "HTTP_REFERER", req->fcgi_request->envp );
+    // Find rows
+    struct NNCMS_ROW *row_count = database_query( req, "SELECT COUNT(*) FROM bans" );
+    garbage_add( req->loop_garbage, row_count, MEMORY_GARBAGE_DB_FREE );
+    char *http_start = main_variable_get( req, req->get_tree, "start" );
+    database_bind_int( req->stmt_list_bans, 1, default_pager_quantity );
+    database_bind_text( req->stmt_list_bans, 2, (http_start != NULL ? http_start : "0") );
+    struct NNCMS_BAN_ROW *ban_row = (struct NNCMS_BAN_ROW *) database_steps( req, req->stmt_list_bans );
+    if( ban_row == 0 )
+    {
+        main_vmessage( req, "not_found" );
+        return;
+    }
+    garbage_add( req->loop_garbage, ban_row, MEMORY_GARBAGE_DB_FREE );
 
-    // Load editor
-    template_iparse( req, TEMPLATE_BAN_ADD, req->lpszBuffer, NNCMS_PAGE_SIZE_MAX, addTemplate );
+    // Page title
+    char *header_str = i18n_string_temp( req, "ban_list_header", NULL );
 
-output:
-    // Generate the page
-    template_iparse( req, TEMPLATE_FRAME, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, frameTemplate );
+    // Header cells
+    struct NNCMS_TABLE_CELL header_cells[] =
+    {
+        { .value = i18n_string_temp( req, "ban_id_name", NULL ), .type = NNCMS_TYPE_STRING, .options = NULL },
+        { .value = i18n_string_temp( req, "ban_ip_name", NULL ), .type = NNCMS_TYPE_STRING, .options = NULL },
+        { .value = i18n_string_temp( req, "ban_mask_name", NULL ), .type = NNCMS_TYPE_STRING, .options = NULL },
+        { .value = i18n_string_temp( req, "ban_reason_name", NULL ), .type = NNCMS_TYPE_STRING, .options = NULL },
+        { .value = i18n_string_temp( req, "ban_time_name", NULL ), .type = NNCMS_TYPE_STRING, .options = NULL },
+        { .value = i18n_string_temp( req, "ban_user_name", NULL ), .type = NNCMS_TYPE_STRING, .options = NULL },
+        { .value = "", .type = NNCMS_TYPE_STRING, .options = NULL },
+        { .value = "", .type = NNCMS_TYPE_STRING, .options = NULL },
+        { .value = "", .type = NNCMS_TYPE_STRING, .options = NULL },
+        { .type = NNCMS_TYPE_NONE }
+    };
+
+    // Fetch table data
+    GArray *gcells = g_array_new( TRUE, FALSE, sizeof(struct NNCMS_TABLE_CELL) );
+    garbage_add( req->loop_garbage, gcells, MEMORY_GARBAGE_GARRAY_FREE );
+    for( unsigned int i = 0; ban_row != NULL && ban_row[i].id != NULL; i = i + 1 )
+    {
+        // Actions
+        char *link;
+        struct NNCMS_VARIABLE vars[] =
+        {
+            { .name = "ban_id", .value.string = ban_row[i].id, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE }
+        };
+
+        char *view = main_temp_link( req, "ban_view", i18n_string_temp( req, "view", NULL ), vars );
+        char *edit = main_temp_link( req, "ban_edit", i18n_string_temp( req, "edit", NULL ), vars );
+        char *delete = main_temp_link( req, "ban_delete", i18n_string_temp( req, "delete", NULL ), vars );
+
+        // Data
+        struct NNCMS_TABLE_CELL cells[] =
+        {
+            { .value.string = ban_row[i].id, .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .value.string = ban_row[i].ip, .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .value.string = ban_row[i].mask, .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .value.string = ban_row[i].reason, .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .value.string = ban_row[i].timestamp, .type = NNCMS_TYPE_STR_TIMESTAMP, .options = NULL },
+            { .value.string = ban_row[i].user_id, .type = TEMPLATE_TYPE_USER, .options = NULL },
+            { .value.string = view, .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .value.string = edit, .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .value.string = delete, .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .type = NNCMS_TYPE_NONE }
+        };
+
+        g_array_append_vals( gcells, &cells, sizeof(cells) / sizeof(struct NNCMS_TABLE_CELL) - 1 );
+    }
+
+    // Create a table
+    struct NNCMS_TABLE table =
+    {
+        .caption = NULL,
+        .header_html = NULL, .footer_html = NULL,
+        .options = NULL,
+        .cellpadding = NULL, .cellspacing = NULL,
+        .border = NULL, .bgcolor = NULL,
+        .width = NULL, .height = NULL,
+        .row_count = atoi( row_count->value[0] ),//gcells->len,
+        .column_count = sizeof(header_cells) / sizeof(struct NNCMS_TABLE_CELL) - 1,
+        .pager_quantity = 0, .pages_displayed = 0,
+        .headerz = header_cells,
+        .cells = (struct NNCMS_TABLE_CELL *) gcells->data
+    };
+
+    // Generate links
+    char *links = ban_links( req, NULL );
+    
+    // Html output
+    char *html = table_html( req, &table );
+
+    // Specify values for template
+    struct NNCMS_VARIABLE frame_template[] =
+        {
+            { .name = "header", .value.string = header_str, .type = NNCMS_TYPE_STRING },
+            { .name = "content", .value.string = html, .type = NNCMS_TYPE_STRING },
+            { .name = "icon", .value.string = "images/status/security-medium.png", .type = NNCMS_TYPE_STRING },
+            { .name = "homeURL", .value.string = homeURL, .type = NNCMS_TYPE_STRING },
+            { .name = "links", .value.string = links, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE } // Terminating row
+        };
+
+    // Make a cute frame
+    template_hparse( req, "frame.html", req->frame, frame_template );
 
     // Send generated html to client
-    main_output( req, szHeader, req->lpszFrame, 0 );
+    main_output( req, header_str, req->frame->str, 0 );
 }
 
 // #############################################################################
@@ -345,451 +513,375 @@ output:
 void ban_view( struct NNCMS_THREAD_INFO *req )
 {
     // Page header
-    char *szHeader = "Ban view";
-
-    // Specify values for template
-    struct NNCMS_TEMPLATE_TAGS frameTemplate[] =
-        {
-            { /* szName */ "header", /* szValue */ szHeader },
-            { /* szName */ "content",  /* szValue */ req->lpszBuffer },
-            { /* szName */ "icon",  /* szValue */ "images/status/security-medium.png" },
-            { /* szName */ "homeURL",  /* szValue */ homeURL },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-    struct NNCMS_TEMPLATE_TAGS banTemplate[] =
-        {
-            { /* szName */ "homeURL", /* szValue */ homeURL },
-            { /* szName */ "ban_id", /* szValue */ 0 },
-            { /* szName */ "ban_user_id", /* szValue */ 0 },
-            { /* szName */ "ban_user_name", /* szValue */ 0 },
-            { /* szName */ "ban_user_nick", /* szValue */ 0 },
-            { /* szName */ "ban_timestamp", /* szValue */ 0 },
-            { /* szName */ "ban_ip", /* szValue */ 0 },
-            { /* szName */ "ban_mask", /* szValue */ 0 },
-            { /* szName */ "ban_reason", /* szValue */ 0 },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-    struct NNCMS_TEMPLATE_TAGS structureTemplate[] =
-        {
-            { /* szName */ "homeURL", /* szValue */ homeURL },
-            { /* szName */ "entries", /* szValue */ req->lpszBuffer },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-
-    // Create smart buffers
-    struct NNCMS_BUFFER smartBuffer =
-        {
-            /* lpBuffer */ req->lpszBuffer,
-            /* nSize */ NNCMS_PAGE_SIZE_MAX,
-            /* nPos */ 0
-        };
-    *smartBuffer.lpBuffer = 0;
-
-    // Check session
-    user_check_session( req );
+    char *header_str = i18n_string_temp( req, "ban_view_header", NULL );
 
     // First we check what permissions do user have
-    if( acl_check_perm( req, "ban", req->g_username, "view" ) == false )
+    if( acl_check_perm( req, "ban", NULL, "view" ) == false )
     {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Not allowed";
-        log_printf( req, LOG_NOTICE, "Ban::View: %s", frameTemplate[1].szValue );
-        goto output;
+        main_vmessage( req, "not_allowed" );
+        return;
     }
 
-    // Try to get log entry id
-    struct NNCMS_ROW *banRow = 0;
-    struct NNCMS_VARIABLE *httpVarId = main_get_variable( req, "ban_id" );
-    if( httpVarId == 0 )
+    // Get ban id
+    char *ban_id = main_variable_get( req, req->get_tree, "ban_id" );
+    if( ban_id == 0 )
     {
-        // Find rows
-        banRow = database_steps( req->stmtListBans );
+        main_vmessage( req, "no_data" );
+        return;
     }
-    else
+    
+    // Find row associated with our object by 'id'
+    database_bind_text( req->stmt_find_ban_by_id, 1, ban_id );
+    struct NNCMS_BAN_ROW *ban_row = (struct NNCMS_BAN_ROW *) database_steps( req, req->stmt_find_ban_by_id );
+    if( ban_row == 0 )
     {
-        // Find row associated with our object by 'id'
-        database_bind_text( req->stmtFindBanById, 1, httpVarId->lpszValue );
-        banRow = database_steps( req->stmtFindBanById );
+        main_vmessage( req, "not_found" );
+        return;
     }
+    garbage_add( req->loop_garbage, ban_row, MEMORY_GARBAGE_DB_FREE );
 
-    // Is log empty ?
-    if( banRow == 0 )
+    //
+    // Form
+    //
+    struct NNCMS_BAN_FIELDS *fields = memdup_temp( req, &ban_fields, sizeof(ban_fields) );
+    fields->ban_id.value = ban_row->id;
+    fields->ban_user_id.value = ban_row->user_id;
+    fields->ban_timestamp.value = ban_row->timestamp;
+    fields->ban_ip.value = ban_row->ip;
+    fields->ban_mask.value = ban_row->mask;
+    fields->ban_reason.value = ban_row->reason;
+    fields->referer.viewable = false;
+    fields->fkey.viewable = false;
+
+    struct NNCMS_FORM form =
     {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "No ban data";
-        log_printf( req, LOG_ERROR, "Ban::View: %s", frameTemplate[1].szValue );
-        goto output;
-    }
+        .name = "ban_view", .action = NULL, .method = NULL,
+        .title = NULL, .help = NULL,
+        .header_html = NULL, .footer_html = NULL,
+        .fields = (struct NNCMS_FIELD *) fields
+    };
 
-    // Loop thru all rows
-    struct NNCMS_ROW *curRow = banRow;
-    unsigned int i = 100;
-    while( --i )
-    {
-        // Fill template values
-        banTemplate[1].szValue = curRow->szColValue[0];
-        banTemplate[6].szValue = curRow->szColValue[3];
-        banTemplate[7].szValue = curRow->szColValue[4];
-        banTemplate[8].szValue = curRow->szColValue[5];
+    // Generate links
+    char *links = ban_links( req, ban_id );
 
-        // Get time string
-        char szTime[64];
-        time_t rawTime = atoi( curRow->szColValue[2] );
-        struct tm *timeInfo = localtime( &rawTime );
-        strftime( szTime, 64, szTimestampFormat, timeInfo );
-        banTemplate[5].szValue = szTime;
+    // Html output
+    char *html = form_html( req, &form );
 
-        // Get user
-        database_bind_text( req->stmtFindUserById, 1, curRow->szColValue[1] ); // id
-        struct NNCMS_ROW *userRow = database_steps( req->stmtFindUserById );
-        if( userRow != 0 )
+    // Specify values for template
+    struct NNCMS_VARIABLE frame_template[] =
         {
-            banTemplate[2].szValue = curRow->szColValue[1];
-            banTemplate[3].szValue = userRow->szColValue[1];
-            banTemplate[4].szValue = userRow->szColValue[2];
-        }
-        else
-        {
-            banTemplate[2].szValue = "0";
-            banTemplate[3].szValue = "guest";
-            banTemplate[4].szValue = "Anonymous";
-        }
+            { .name = "header", .value.string = header_str, .type = NNCMS_TYPE_STRING },
+            { .name = "content", .value.string = html, .type = NNCMS_TYPE_STRING },
+            { .name = "icon", .value.string = "images/status/security-medium.png", .type = NNCMS_TYPE_STRING },
+            { .name = "homeURL", .value.string = homeURL, .type = NNCMS_TYPE_STRING },
+            { .name = "links", .value.string = links, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE } // Terminating row
+        };
 
-        // Use different template for one log entry and list of log entries
-        if( httpVarId == 0 )
-            // Parse one row
-            template_iparse( req, TEMPLATE_BAN_VIEW_ROW, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, banTemplate );
-        else
-            template_iparse( req, TEMPLATE_BAN_VIEW, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, banTemplate );
-        smart_cat( &smartBuffer, req->lpszFrame );
-
-        // Free rows after parsing the template
-        database_freeRows( userRow );
-
-        // Select next row
-        curRow = curRow->next;
-        if( curRow == 0 )
-            break;
-    }
-
-    // Free memory from query result
-    database_freeRows( banRow );
-
-    // Make a frame around rows if no id specified
-    if( httpVarId == 0 )
-    {
-        template_iparse( req, TEMPLATE_BAN_VIEW_STRUCTURE, req->lpszTemp, NNCMS_PAGE_SIZE_MAX, structureTemplate );
-        frameTemplate[1].szValue = req->lpszTemp;
-    }
-
-output:
     // Make a cute frame
-    template_iparse( req, TEMPLATE_FRAME, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, frameTemplate );
+    template_hparse( req, "frame.html", req->frame, frame_template );
 
     // Send generated html to client
-    main_output( req, szHeader, req->lpszFrame, 0 );
+    main_output( req, header_str, req->frame->str, 0 );
 }
 
 // #############################################################################
 
 void ban_edit( struct NNCMS_THREAD_INFO *req )
 {
-    // Page header
-    char *szHeader = "Edit Ban";
-
-    // Specify values for template
-    struct NNCMS_TEMPLATE_TAGS frameTemplate[] =
-        {
-            { /* szName */ "header", /* szValue */ szHeader },
-            { /* szName */ "content",  /* szValue */ req->lpszBuffer },
-            { /* szName */ "icon",  /* szValue */ "images/status/security-medium.png" },
-            { /* szName */ "homeURL",  /* szValue */ homeURL },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-    struct NNCMS_TEMPLATE_TAGS editTemplate[] =
-        {
-            { /* szName */ "referer", /* szValue */ FCGX_GetParam( "HTTP_REFERER", req->fcgi_request->envp ) },
-            { /* szName */ "homeURL", /* szValue */ homeURL },
-            { /* szName */ "ban_id", /* szValue */ 0 },
-            { /* szName */ "ban_user_id", /* szValue */ 0 },
-            { /* szName */ "ban_user_name", /* szValue */ 0 },
-            { /* szName */ "ban_user_nick", /* szValue */ 0 },
-            { /* szName */ "ban_timestamp", /* szValue */ 0 },
-            { /* szName */ "ban_ip", /* szValue */ 0 },
-            { /* szName */ "ban_mask", /* szValue */ 0 },
-            { /* szName */ "ban_reason", /* szValue */ 0 },
-            { /* szName */ "fkey", /* szValue */ 0 },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-
-    // Check session
-    user_check_session( req );
-    editTemplate[10].szValue = req->g_sessionid;
-
     // Check user permission to edit ACLs
-    if( acl_check_perm( req, "ban", req->g_username, "edit" ) == false )
+    if( acl_check_perm( req, "ban", NULL, "edit" ) == false )
     {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Not allowed";
-        log_printf( req, LOG_NOTICE, "Ban::Edit: %s", frameTemplate[1].szValue );
-        goto output;
+        main_message( req, "not_allowed" );
+        return;
     }
 
-    // Get file name
-    struct NNCMS_VARIABLE *httpVarId = main_get_variable( req, "ban_id" );
-    if( httpVarId == 0 )
+    // Get ban id
+    char *ban_id = main_variable_get( req, req->get_tree, "ban_id" );
+    if( ban_id == 0 )
     {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "No id specified";
-        log_printf( req, LOG_ERROR, "Ban::Edit: %s", frameTemplate[1].szValue );
-        goto output;
+        main_vmessage( req, "no_data" );
+        return;
     }
 
-    // Find rows associated with our object by 'id'
-    database_bind_text( req->stmtFindBanById, 1, httpVarId->lpszValue );
-    struct NNCMS_ROW *banRow = database_steps( req->stmtFindBanById );
-    if( banRow == 0 )
+    // Find row associated with our object by 'id'
+    database_bind_text( req->stmt_find_ban_by_id, 1, ban_id );
+    struct NNCMS_BAN_ROW *ban_row = (struct NNCMS_BAN_ROW *) database_steps( req, req->stmt_find_ban_by_id );
+    if( ban_row == 0 )
     {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Ban not found";
-        log_printf( req, LOG_ERROR, "Ban::Edit: %s", frameTemplate[1].szValue );
-        goto output;
+        main_vmessage( req, "not_found" );
+        return;
     }
+    garbage_add( req->loop_garbage, ban_row, MEMORY_GARBAGE_DB_FREE );
+
+    // Page header
+    struct NNCMS_VARIABLE vars[] =
+    {
+        { .name = "ban_id", .value.string = ban_id, .type = NNCMS_TYPE_STRING },
+        { .type = NNCMS_TYPE_NONE }
+    };
+    char *header_str = i18n_string_temp( req, "ban_edit_header", NULL );
+
+    //
+    // Form
+    //
+    struct NNCMS_BAN_FIELDS *fields = memdup_temp( req, &ban_fields, sizeof(ban_fields) );
+    fields->ban_id.value = ban_row->id;
+    fields->ban_user_id.value = ban_row->user_id;
+    fields->ban_timestamp.value = ban_row->timestamp;
+    fields->ban_ip.value = ban_row->ip;
+    fields->ban_mask.value = ban_row->mask;
+    fields->ban_reason.value = ban_row->reason;
+    fields->referer.value = req->referer;
+    fields->fkey.value = req->session_id;
+    fields->ban_edit.viewable = true;
+
+    struct NNCMS_FORM form =
+    {
+        .name = "ban_edit", .action = NULL, .method = "POST",
+        .title = NULL, .help = NULL,
+        .header_html = NULL, .footer_html = NULL,
+        .fields = (struct NNCMS_FIELD *) fields
+    };
 
     //
     // Check if user commit changes
     //
-    struct NNCMS_VARIABLE *httpVarEdit = main_get_variable( req, "ban_edit" );
-    if( httpVarEdit != 0 )
+    char *ban_edit = main_variable_get( req, req->post_tree, "ban_edit" );
+    if( ban_edit != 0 )
     {
         // Anti CSRF / XSRF vulnerabilities
         if( user_xsrf( req ) == false )
         {
-            frameTemplate[0].szValue = "Error";
-            frameTemplate[1].szValue = "Unequal keys";
-            goto output;
+            main_message( req, "xsrf_fail" );
+            return;
         }
 
         // Get POST data
-        struct NNCMS_VARIABLE *httpVarIp = main_get_variable( req, "ban_ip" );
-        struct NNCMS_VARIABLE *httpVarMask = main_get_variable( req, "ban_mask" );
-        struct NNCMS_VARIABLE *httpVarReason = main_get_variable( req, "ban_reason" );
-        if( httpVarIp == 0 ||
-            httpVarMask == 0 ||
-            httpVarReason == 0 )
+        form_post_data( req, (struct NNCMS_FIELD *) fields );
+        
+        // Validate
+        bool field_valid = field_validate( req, (struct NNCMS_FIELD *) fields );
+        bool ban_valid = ban_validate( req, fields );
+        if( field_valid == true && ban_valid == true )
         {
-            frameTemplate[0].szValue = "Error";
-            frameTemplate[1].szValue = "No data";
-            log_printf( req, LOG_ERROR, "Ban::Edit: %s", frameTemplate[1].szValue );
-            goto output;
-        }
+            // Query Database
+            database_bind_text( req->stmt_edit_ban, 1, fields->ban_ip.value );
+            database_bind_text( req->stmt_edit_ban, 2, fields->ban_mask.value );
+            database_bind_text( req->stmt_edit_ban, 3, fields->ban_reason.value );
+            database_bind_text( req->stmt_edit_ban, 4, ban_id );
+            database_steps( req, req->stmt_edit_ban );
 
-        // Check if address written correctly
-        struct in_addr addr;
-        if( inet_aton( httpVarIp->lpszValue, &addr ) == 0 )
-        {
-            frameTemplate[0].szValue = "Error";
-            frameTemplate[1].szValue = "Invalid ip address";
-            log_printf( req, LOG_ERROR, "Ban::Edit: %s", frameTemplate[1].szValue );
-            goto output;
+            log_vdisplayf( req, LOG_ACTION, "ban_edit_success", vars );
+            log_printf( req, LOG_ACTION, "Ban '%s' was edited", ban_row->ip );
+            
+            // Redirect back
+            redirect_to_referer( req );
+            return;
         }
-        if( inet_aton( httpVarMask->lpszValue, &addr ) == 0 )
-        {
-            frameTemplate[0].szValue = "Error";
-            frameTemplate[1].szValue = "Invalid mask address";
-            log_printf( req, LOG_ERROR, "Ban::Edit: %s", frameTemplate[1].szValue );
-            goto output;
-        }
-
-        // Query Database
-        database_bind_text( req->stmtEditBan, 1, httpVarIp->lpszValue );
-        database_bind_text( req->stmtEditBan, 2, httpVarMask->lpszValue );
-        database_bind_text( req->stmtEditBan, 3, httpVarReason->lpszValue );
-        database_bind_text( req->stmtEditBan, 4, httpVarId->lpszValue );
-        database_steps( req->stmtEditBan );
-        log_printf( req, LOG_ACTION, "Ban::Edit: Edited ban where id=\"%s\"", httpVarId->lpszValue );
-
-        // Redirect back
-        redirect_to_referer( req );
-        database_freeRows( banRow );
-        return;
     }
 
-    // Fill template values
-    editTemplate[2].szValue = banRow->szColValue[0];
-    editTemplate[7].szValue = banRow->szColValue[3];
-    editTemplate[8].szValue = banRow->szColValue[4];
-    editTemplate[9].szValue = banRow->szColValue[5];
+    // Generate links
+    char *links = ban_links( req, ban_id );
 
-    // Get time string
-    char szTime[64];
-    time_t rawTime = atoi( banRow->szColValue[2] );
-    struct tm *timeInfo = localtime( &rawTime );
-    strftime( szTime, 64, szTimestampFormat, timeInfo );
-    editTemplate[6].szValue = szTime;
+    // Html output
+    char *html = form_html( req, &form );
 
-    // Get user
-    database_bind_text( req->stmtFindUserById, 1, banRow->szColValue[1] ); // id
-    struct NNCMS_ROW *userRow = database_steps( req->stmtFindUserById );
-    if( userRow != 0 )
-    {
-        editTemplate[3].szValue = banRow->szColValue[1];
-        editTemplate[4].szValue = userRow->szColValue[1];
-        editTemplate[5].szValue = userRow->szColValue[2];
-    }
-    else
-    {
-        editTemplate[3].szValue = "0";
-        editTemplate[4].szValue = "guest";
-        editTemplate[5].szValue = "Anonymous";
-    }
+    // Specify values for template
+    struct NNCMS_VARIABLE frame_template[] =
+        {
+            { .name = "header", .value.string = header_str, .type = NNCMS_TYPE_STRING },
+            { .name = "content", .value.string = html, .type = NNCMS_TYPE_STRING },
+            { .name = "icon", .value.string = "images/status/security-medium.png", .type = NNCMS_TYPE_STRING },
+            { .name = "homeURL", .value.string = homeURL, .type = NNCMS_TYPE_STRING },
+            { .name = "links", .value.string = links, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE } // Terminating row
+        };
 
-    // Load editor
-    template_iparse( req, TEMPLATE_BAN_EDIT, req->lpszBuffer, NNCMS_PAGE_SIZE_MAX, editTemplate );
-
-    // Clean up
-    database_freeRows( banRow );
-
-output:
-    // Generate the page
-    template_iparse( req, TEMPLATE_FRAME, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, frameTemplate );
+    // Make a cute frame
+    template_hparse( req, "frame.html", req->frame, frame_template );
 
     // Send generated html to client
-    main_output( req, szHeader, req->lpszFrame, 0 );
+    main_output( req, header_str, req->frame->str, 0 );
 }
 
 // #############################################################################
 
 void ban_delete( struct NNCMS_THREAD_INFO *req )
 {
-    // Page header
-    char *szHeader = "Delete Ban";
-
-    // Specify values for template
-    struct NNCMS_TEMPLATE_TAGS frameTemplate[] =
-        {
-            { /* szName */ "header", /* szValue */ szHeader },
-            { /* szName */ "content",  /* szValue */ req->lpszBuffer },
-            { /* szName */ "icon",  /* szValue */ "images/actions/edit-delete.png" },
-            { /* szName */ "homeURL",  /* szValue */ homeURL },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-    struct NNCMS_TEMPLATE_TAGS delTemplate[] =
-        {
-            { /* szName */ "referer", /* szValue */ FCGX_GetParam( "HTTP_REFERER", req->fcgi_request->envp ) },
-            { /* szName */ "homeURL", /* szValue */ homeURL },
-            { /* szName */ "ban_id", /* szValue */ 0 },
-            { /* szName */ "ban_user_id", /* szValue */ 0 },
-            { /* szName */ "ban_user_name", /* szValue */ 0 },
-            { /* szName */ "ban_user_nick", /* szValue */ 0 },
-            { /* szName */ "ban_timestamp", /* szValue */ 0 },
-            { /* szName */ "ban_ip", /* szValue */ 0 },
-            { /* szName */ "ban_mask", /* szValue */ 0 },
-            { /* szName */ "ban_reason", /* szValue */ 0 },
-            { /* szName */ "fkey", /* szValue */ 0 },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-
-    // Check session
-    user_check_session( req );
-    delTemplate[10].szValue = req->g_sessionid;
 
     // Check user permission to edit ACLs
-    if( acl_check_perm( req, "ban", req->g_username, "delete" ) == false )
+    if( acl_check_perm( req, "ban", NULL, "delete" ) == false )
     {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Not allowed";
-        log_printf( req, LOG_NOTICE, "Ban::Delete: %s", frameTemplate[1].szValue );
-        goto output;
+        main_message( req, "not_allowed" );
+        return;
     }
 
-    // Try to get post id
-    struct NNCMS_VARIABLE *httpVarId = main_get_variable( req, "ban_id" );
-    if( httpVarId == 0 )
+    // Get ban id
+    char *ban_id = main_variable_get( req, req->get_tree, "ban_id" );
+    if( ban_id == 0 )
     {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "No data";
-        log_printf( req, LOG_NOTICE, "Ban::Delete: %s", frameTemplate[1].szValue );
-        goto output;
+        main_vmessage( req, "no_data" );
+        return;
     }
 
-    // Filter evil data
-    unsigned int uBanId = atoi( httpVarId->lpszValue );
-
-    // Ok, try to find selected post id
-    database_bind_int( req->stmtFindBanById, 1, uBanId );
-    struct NNCMS_ROW *banRow = database_steps( req->stmtFindBanById );
-    if( banRow == 0 )
+    // Page header
+    struct NNCMS_VARIABLE vars[] =
     {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Ban not found";
-        log_printf( req, LOG_NOTICE, "Ban::Delete: %s (id = %u)", frameTemplate[1].szValue, uBanId );
-        goto output;
+        { .name = "ban_id", .value.string = ban_id, .type = NNCMS_TYPE_STRING },
+        { .type = NNCMS_TYPE_NONE }
+    };
+    char *header_str = i18n_string_temp( req, "ban_delete_header", vars );
+
+    // Find selected ban id
+    database_bind_text( req->stmt_find_ban_by_id, 1, ban_id );
+    struct NNCMS_BAN_ROW *ban_row = (struct NNCMS_BAN_ROW *) database_steps( req, req->stmt_find_ban_by_id );
+    if( ban_row == 0 )
+    {
+        main_vmessage( req, "not_found" );
+        return;
     }
+    garbage_add( req->loop_garbage, ban_row, MEMORY_GARBAGE_DB_FREE );
 
     // Did user pressed button?
-    struct NNCMS_VARIABLE *httpVarDelete = main_get_variable( req, "ban_delete" );
-    if( httpVarDelete != 0 )
+    char *delete_submit = main_variable_get( req, req->post_tree, "delete_submit" );
+    if( delete_submit != 0 )
     {
         // Anti CSRF / XSRF vulnerabilities
         if( user_xsrf( req ) == false )
         {
-            frameTemplate[0].szValue = "Error";
-            frameTemplate[1].szValue = "Unequal keys";
-            goto output;
+            main_message( req, "xsrf_fail" );
+            return;
         }
 
         // Query Database
-        database_bind_int( req->stmtDeleteBan, 1, uBanId );
-        database_steps( req->stmtDeleteBan );
-        log_printf( req, LOG_ACTION, "Ban::Delete: Ban #%u deleted", uBanId );
+        database_bind_text( req->stmt_delete_ban, 1, ban_id );
+        database_steps( req, req->stmt_delete_ban );
+
+        log_printf( req, LOG_ACTION, "Ban '%s' was deleted", ban_row->ip );
+        log_vdisplayf( req, LOG_ACTION, "ban_delete_success", vars );
 
         // Redirect back
         redirect_to_referer( req );
-        database_freeRows( banRow );
         return;
     }
 
-    // Fill template values
-    delTemplate[2].szValue = banRow->szColValue[0];
-    delTemplate[7].szValue = banRow->szColValue[3];
-    delTemplate[8].szValue = banRow->szColValue[4];
-    delTemplate[9].szValue = banRow->szColValue[5];
+    struct NNCMS_FORM *form = template_confirm( req, ban_id );
 
-    // Get time string
-    char szTime[64];
-    time_t rawTime = atoi( banRow->szColValue[2] );
-    struct tm *timeInfo = localtime( &rawTime );
-    strftime( szTime, 64, szTimestampFormat, timeInfo );
-    delTemplate[6].szValue = szTime;
+    // Generate links
+    char *links = ban_links( req, ban_id );
 
-    // Get user
-    database_bind_text( req->stmtFindUserById, 1, banRow->szColValue[1] ); // id
-    struct NNCMS_ROW *userRow = database_steps( req->stmtFindUserById );
-    if( userRow != 0 )
-    {
-        delTemplate[3].szValue = banRow->szColValue[1];
-        delTemplate[4].szValue = userRow->szColValue[1];
-        delTemplate[5].szValue = userRow->szColValue[2];
-    }
-    else
-    {
-        delTemplate[3].szValue = "0";
-        delTemplate[4].szValue = "guest";
-        delTemplate[5].szValue = "Anonymous";
-    }
+    // Html output
+    char *html = form_html( req, form );
 
-    // Load editor
-    template_iparse( req, TEMPLATE_BAN_DELETE, req->lpszBuffer, NNCMS_PAGE_SIZE_MAX, delTemplate );
+    // Specify values for template
+    struct NNCMS_VARIABLE frame_template[] =
+        {
+            { .name = "header", .value.string = header_str, .type = NNCMS_TYPE_STRING },
+            { .name = "content", .value.string = html, .type = NNCMS_TYPE_STRING },
+            { .name = "icon", .value.string = "images/actions/edit-delete.png", .type = NNCMS_TYPE_STRING },
+            { .name = "homeURL", .value.string = homeURL, .type = NNCMS_TYPE_STRING },
+            { .name = "links", .value.string = links, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE } // Terminating row
+        };
 
-    database_freeRows( banRow );
-
-output:
-    // Generate the page
-    template_iparse( req, TEMPLATE_FRAME, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, frameTemplate );
+    // Make a cute frame
+    template_hparse( req, "frame.html", req->frame, frame_template );
 
     // Send generated html to client
-    main_output( req, szHeader, req->lpszFrame, 0 );
+    main_output( req, header_str, req->frame->str, 0 );
 }
 
 // #############################################################################
+
+char *ban_links( struct NNCMS_THREAD_INFO *req, char *ban_id )
+{
+    struct NNCMS_VARIABLE vars[] =
+    {
+        { .name = "ban_id", .value.string = ban_id, .type = NNCMS_TYPE_STRING },
+        { .type = NNCMS_TYPE_NONE }
+    };
+    
+    // Create array for links
+    
+    struct NNCMS_LINK link =
+    {
+        .function = NULL,
+        .title = NULL,
+        .vars = NULL
+    };
+    
+    GArray *links = g_array_new( TRUE, FALSE, sizeof(struct NNCMS_LINK) );
+
+    // Fill the link array with links
+
+    link.function = "ban_list";
+    link.title = i18n_string_temp( req, "list_link", NULL );
+    link.vars = NULL;
+    g_array_append_vals( links, &link, 1 );
+
+    link.function = "ban_add";
+    link.title = i18n_string_temp( req, "add_link", NULL );
+    link.vars = NULL;
+    g_array_append_vals( links, &link, 1 );
+
+    if( ban_id != NULL )
+    {
+        link.function = "ban_view";
+        link.title = i18n_string_temp( req, "view_link", NULL );
+        link.vars = vars;
+        g_array_append_vals( links, &link, 1 );
+
+        link.function = "ban_edit";
+        link.title = i18n_string_temp( req, "edit_link", NULL );
+        link.vars = vars;
+        g_array_append_vals( links, &link, 1 );
+
+        link.function = "ban_delete";
+        link.title = i18n_string_temp( req, "delete_link", NULL );
+        link.vars = vars;
+        g_array_append_vals( links, &link, 1 );
+    }
+
+    // Convert arrays to HTML code
+    char *html = template_links( req, (struct NNCMS_LINK *) links->data );
+    garbage_add( req->loop_garbage, html, MEMORY_GARBAGE_GFREE );
+
+    // Free array
+    g_array_free( links, TRUE );
+    
+    return html;
+}
+
+// #############################################################################
+
+bool ban_validate( struct NNCMS_THREAD_INFO *req, struct NNCMS_BAN_FIELDS *fields )
+{
+    bool result = true;
+
+    // Check if address written correctly
+    struct in_addr addr;
+    if( inet_aton( fields->ban_ip.value, &addr ) == 0 )
+    {
+        result = false; 
+        struct NNCMS_VARIABLE vars[] =
+        {
+            { .name = "field_name", .value.string = fields->ban_ip.name, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE }
+        };
+        log_vdisplayf( req, LOG_ERROR, "ban_validate_invalid_ip", vars );
+    }
+
+    if( inet_aton( fields->ban_mask.value, &addr ) == 0 )
+    {
+        result = false; 
+        struct NNCMS_VARIABLE vars[] =
+        {
+            { .name = "field_name", .value.string = fields->ban_mask.name, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE }
+        };
+        log_vdisplayf( req, LOG_ERROR, "ban_validate_invalid_ip", vars );
+    }
+    
+    return result;
+}

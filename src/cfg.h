@@ -12,7 +12,7 @@
 // includes of system headers
 //
 
-#include "config.h"
+
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -57,7 +57,7 @@ enum NNCMS_TYPES
 
 struct NNCMS_OPTION
 {
-    char szName[64];        // Option name
+    char name[64];        // Option name
     enum NNCMS_TYPES nType; // Option type
     void *lpMem;            // Location of variable in memory
     //void *lpDefault;      // Default value if option isn't in config
@@ -67,12 +67,19 @@ struct NNCMS_OPTION
 // function declarations
 //
 
+bool cfg_global_init( );
+bool cfg_global_destroy( );
+
 // Pages
+void cfg_list( struct NNCMS_THREAD_INFO *req );
 void cfg_view( struct NNCMS_THREAD_INFO *req );
 void cfg_edit( struct NNCMS_THREAD_INFO *req );
 
 // Parser
+bool cfg_parse_buffer( struct NNCMS_THREAD_INFO *req, char *buffer, struct NNCMS_VARIABLE *vars );
 bool cfg_parse_file( const char *lpszFileName, struct NNCMS_OPTION *lpOptions );
+
+char *cfg_links( struct NNCMS_THREAD_INFO *req, char *cfg_id );
 
 // #############################################################################
 

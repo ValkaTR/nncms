@@ -13,7 +13,7 @@
 // rofl includes of system headers
 //
 
-#include "config.h"
+
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -31,6 +31,8 @@
 // includes of local headers
 //
 
+#include "template.h"
+
 // #############################################################################
 
 #ifndef __filter_h__
@@ -40,6 +42,13 @@
 // type and constant definitions
 //
 
+extern char unix_file_validate[];
+extern char printable_validate[];
+extern char numeric_validate[];
+extern char alphanum_validate[];
+extern char alphanum_underscore_validate[];
+
+extern char alphanum_filter[];
 extern char usernameFilter_cp1251[];
 extern char nicknameFilter_cp1251[];
 extern char passwordFilter_cp1251[];
@@ -52,6 +61,15 @@ extern char numericFilter[256];
 // #############################################################################
 // function declarations
 //
+
+char *filter_str_to_ptr( char *str, struct NNCMS_VARIABLE *vars );
+int filter_str_to_int( char *str, struct NNCMS_VARIABLE *vars );
+char *filter_int_to_str( int val, struct NNCMS_VARIABLE *vars );
+
+// Validation
+bool filter_option_validation( char *buff, struct NNCMS_SELECT_OPTIONS *options );
+bool filter_table_validation( char *buff, char *table );
+bool filter_size_limit( char *buff, size_t low, size_t high );
 
 // Strint functions, these process strings
 void filter_table_replace( char *dest, size_t nLen, char *table ); // Table replace

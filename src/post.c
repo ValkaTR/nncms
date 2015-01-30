@@ -22,12 +22,14 @@
 #include "log.h"
 #include "acl.h"
 #include "user.h"
+#include "group.h"
 #include "template.h"
 #include "database.h"
 #include "post.h"
 #include "filter.h"
 #include "smart.h"
 #include "file.h"
+#include "i18n.h"
 
 #include "strlcpy.h"
 #include "strlcat.h"
@@ -43,1855 +45,1596 @@
 int nPostDepth = 2;
 
 // #############################################################################
+// Forms
+//
+
+struct NNCMS_SELECT_ITEM post_types[] =
+{
+    { .name = "msg", .desc = NULL, .selected = false },
+    { .name = "topic", .desc = NULL, .selected = false },
+    { .name = "subforum", .desc = NULL, .selected = false },
+    { .name = "group", .desc = NULL, .selected = false },
+    { .name = "forum", .desc = NULL, .selected = false },
+    { .name = NULL, .desc = NULL, .selected = false }
+};
+
+struct NNCMS_VARIABLE post_type_list[] =
+{
+    { .name = "none", .value.integer = NNCMS_POST_NONE, .type = NNCMS_TYPE_INTEGER },
+    { .name = "msg", .value.integer = NNCMS_POST_MESSAGE, .type = NNCMS_TYPE_INTEGER },
+    { .name = "topic", .value.integer = NNCMS_POST_TOPIC, .type = NNCMS_TYPE_INTEGER },
+    { .name = "subforum", .value.integer = NNCMS_POST_SUBFORUM, .type = NNCMS_TYPE_INTEGER },
+    { .name = "group", .value.integer = NNCMS_POST_GROUP, .type = NNCMS_TYPE_INTEGER },
+    { .name = "forum", .value.integer = NNCMS_POST_FORUM, .type = NNCMS_TYPE_INTEGER },
+    { .type = NNCMS_TYPE_NONE }
+};
+
+struct NNCMS_POST_ADD_FIELDS
+{
+    struct NNCMS_FIELD post_id;
+    struct NNCMS_FIELD post_user_id;
+    struct NNCMS_FIELD post_group_id;
+    struct NNCMS_FIELD post_parent_post_id;
+    struct NNCMS_FIELD post_subject;
+    struct NNCMS_FIELD post_body;
+    struct NNCMS_FIELD post_type;
+    struct NNCMS_FIELD post_mode;
+    struct NNCMS_FIELD referer;
+    struct NNCMS_FIELD fkey;
+    struct NNCMS_FIELD post_add;
+    struct NNCMS_FIELD none;
+}
+post_add_fields =
+{
+    { .name = "post_id", .value = NULL, .data = NULL, .type = NNCMS_FIELD_EDITBOX, .values_count = 1, .editable = false, .viewable = false, .text_name = NULL, .text_description = NULL },
+    { .name = "post_user_id", .value = NULL, .data = NULL, .type = NNCMS_FIELD_USER, .values_count = 1, .editable = true, .viewable = true, .text_name = NULL, .text_description = NULL, .char_table = numeric_validate },
+    { .name = "post_group_id", .value = NULL, .data = NULL, .type = NNCMS_FIELD_GROUP, .values_count = 1, .editable = true, .viewable = true, .text_name = NULL, .text_description = NULL, .char_table = numeric_validate },
+    { .name = "post_parent_post_id", .value = NULL, .data = NULL, .type = NNCMS_FIELD_EDITBOX, .values_count = 1, .editable = true, .viewable = true, .text_name = NULL, .text_description = NULL, .char_table = numeric_validate },
+    { .name = "post_subject", .value = NULL, .data = NULL, .type = NNCMS_FIELD_EDITBOX, .values_count = 1, .editable = true, .viewable = true, .text_name = NULL, .text_description = NULL, .size_min = 0, .size_max = 1024 },
+    { .name = "post_body", .value = NULL, .data = NULL, .label_type = FIELD_LABEL_HIDDEN, .type = NNCMS_FIELD_TEXTAREA, .values_count = 1, .editable = true, .viewable = true, .text_name = NULL, .text_description = NULL, .size_min = 0, .size_max = 1024*100 },
+    { .name = "post_type", .value = NULL, .data = & (struct NNCMS_SELECT_OPTIONS) { .link = NULL, .items = post_types }, .type = NNCMS_FIELD_SELECT, .values_count = 1, .editable = true, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "post_mode", .value = NULL, .data = NULL, .type = NNCMS_FIELD_EDITBOX, .values_count = 1, .editable = true, .viewable = true, .text_name = NULL, .text_description = NULL, .size_min = 0, .size_max = 1024 },
+    { .name = "referer", .value = NULL, .data = NULL, .type = NNCMS_FIELD_HIDDEN, .values_count = 1, .editable = false, .viewable = true, .text_name = "", .text_description = "" },
+    { .name = "fkey", .value = NULL, .data = NULL, .type = NNCMS_FIELD_HIDDEN, .values_count = 1, .editable = false, .viewable = true, .text_name = "", .text_description = "" },
+    { .name = "post_add", .value = NULL, .data = NULL, .type = NNCMS_FIELD_SUBMIT, .editable = false, .viewable = true, .text_name = NULL, .text_description = "" },
+    { .type = NNCMS_FIELD_NONE }
+};
+
+struct NNCMS_POST_EDIT_FIELDS
+{
+    struct NNCMS_FIELD post_id;
+    struct NNCMS_FIELD post_user_id;
+    struct NNCMS_FIELD post_group_id;
+    struct NNCMS_FIELD post_parent_post_id;
+    struct NNCMS_FIELD post_timestamp;
+    struct NNCMS_FIELD post_subject;
+    struct NNCMS_FIELD post_body;
+    struct NNCMS_FIELD post_type;
+    struct NNCMS_FIELD post_mode;
+    struct NNCMS_FIELD referer;
+    struct NNCMS_FIELD fkey;
+    struct NNCMS_FIELD post_edit;
+    struct NNCMS_FIELD none;
+}
+post_edit_fields =
+{
+    { .name = "post_id", .value = NULL, .data = NULL, .type = NNCMS_FIELD_EDITBOX, .values_count = 1, .editable = false, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "post_user_id", .value = NULL, .data = NULL, .type = NNCMS_FIELD_USER, .values_count = 1, .editable = true, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "post_group_id", .value = NULL, .data = NULL, .type = NNCMS_FIELD_GROUP, .values_count = 1, .editable = true, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "post_parent_post_id", .value = NULL, .data = NULL, .type = NNCMS_FIELD_EDITBOX, .values_count = 1, .editable = true, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "post_timestamp", .value = NULL, .data = NULL, .type = NNCMS_FIELD_TIMEDATE, .values_count = 1, .editable = false, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "post_subject", .value = NULL, .data = NULL, .type = NNCMS_FIELD_EDITBOX, .values_count = 1, .editable = true, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "post_body", .value = NULL, .data = NULL, .label_type = FIELD_LABEL_HIDDEN, .type = NNCMS_FIELD_TEXTAREA, .values_count = 1, .editable = true, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "post_type", .value = NULL, .data = & (struct NNCMS_SELECT_OPTIONS) { .link = NULL, .items = post_types }, .type = NNCMS_FIELD_SELECT, .values_count = 1, .editable = true, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "post_mode", .value = NULL, .data = NULL, .type = NNCMS_FIELD_EDITBOX, .values_count = 1, .editable = true, .viewable = true, .text_name = NULL, .text_description = NULL, .size_min = 0, .size_max = 1024 },
+    { .name = "referer", .value = NULL, .data = NULL, .type = NNCMS_FIELD_HIDDEN, .values_count = 1, .editable = false, .viewable = true, .text_name = "", .text_description = "" },
+    { .name = "fkey", .value = NULL, .data = NULL, .type = NNCMS_FIELD_HIDDEN, .values_count = 1, .editable = false, .viewable = true, .text_name = "", .text_description = "" },
+    { .name = "post_edit", .value = NULL, .data = NULL, .type = NNCMS_FIELD_SUBMIT, .editable = false, .viewable = true, .text_name = NULL, .text_description = "" },
+    { .type = NNCMS_FIELD_NONE }
+};
+
+struct NNCMS_POST_VIEW_FIELDS
+{
+    struct NNCMS_FIELD post_id;
+    struct NNCMS_FIELD post_user_id;
+    struct NNCMS_FIELD post_group_id;
+    struct NNCMS_FIELD post_parent_post_id;
+    struct NNCMS_FIELD post_timestamp;
+    struct NNCMS_FIELD post_subject;
+    struct NNCMS_FIELD post_body;
+    struct NNCMS_FIELD post_type;
+    struct NNCMS_FIELD post_mode;
+    struct NNCMS_FIELD none;
+}
+post_view_fields =
+{
+    { .name = "post_id", .value = NULL, .data = NULL, .type = NNCMS_FIELD_EDITBOX, .values_count = 1, .editable = false, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "post_user_id", .value = NULL, .data = NULL, .type = NNCMS_FIELD_USER, .values_count = 1, .editable = false, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "post_group_id", .value = NULL, .data = NULL, .type = NNCMS_FIELD_GROUP, .values_count = 1, .editable = false, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "post_parent_post_id", .value = NULL, .data = NULL, .type = NNCMS_FIELD_EDITBOX, .values_count = 1, .editable = false, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "post_timestamp", .value = NULL, .data = NULL, .type = NNCMS_FIELD_TIMEDATE, .values_count = 1, .editable = false, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "post_subject", .value = NULL, .data = NULL, .type = NNCMS_FIELD_EDITBOX, .values_count = 1, .editable = false, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "post_body", .value = NULL, .label_type = FIELD_LABEL_HIDDEN, .data = NULL, .type = NNCMS_FIELD_TEXTAREA, .values_count = 1, .editable = false, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "post_type", .value = NULL, .data = & (struct NNCMS_SELECT_OPTIONS) { .link = NULL, .items = post_types }, .type = NNCMS_FIELD_SELECT, .values_count = 1, .editable = false, .viewable = true, .text_name = NULL, .text_description = NULL },
+    { .name = "post_mode", .value = NULL, .data = NULL, .type = NNCMS_FIELD_EDITBOX, .values_count = 1, .editable = false, .viewable = true, .text_name = NULL, .text_description = NULL, .size_min = 0, .size_max = 1024 },
+    { .type = NNCMS_FIELD_NONE }
+};
+
+
+// #############################################################################
 // functions
 
-bool post_init( struct NNCMS_THREAD_INFO *req )
+bool post_global_init( )
+{
+    main_local_init_add( &post_local_init );
+    main_local_destroy_add( &post_local_destroy );
+
+    main_page_add( "post_add", &post_add );
+    main_page_add( "post_list", &post_list );
+    main_page_add( "post_edit", &post_edit );
+    main_page_add( "post_delete", &post_delete );
+    main_page_add( "post_view", &post_view );
+
+    return true;
+}
+
+// #############################################################################
+
+bool post_global_destroy( )
+{
+    return true;
+}
+
+// #############################################################################
+
+bool post_local_init( struct NNCMS_THREAD_INFO *req )
 {
     // Prepared statements
-    req->stmtAddPost = database_prepare( "INSERT INTO `posts` VALUES(null, ?, ?, ?, ?, ?)" );
-    req->stmtFindPost = database_prepare( "SELECT `id`, `user_id`, `timestamp`, `parent_post_id`, `subject`, `body` FROM `posts` WHERE `id`=? LIMIT 1" );
-    req->stmtPowerEditPost = database_prepare( "UPDATE `posts` SET `subject`=?, `body`=?, `parent_post_id`=? WHERE `id`=?" );
-    req->stmtEditPost = database_prepare( "UPDATE `posts` SET `subject`=?, `body`=? WHERE `id`=?" );
-    req->stmtDeletePost = database_prepare( "DELETE FROM `posts` WHERE `id`=?" );
-    req->stmtGetParentPost = database_prepare( "SELECT `parent_post_id` FROM `posts` WHERE `id`=?" );
-    req->stmtRootPosts = database_prepare( "SELECT `parent_post_id` FROM `posts`" );
+    req->stmt_add_post = database_prepare( req, "INSERT INTO posts VALUES(null, ?, ?, ?, ?, ?, ?, ?, ?)" );
+    req->stmt_find_post_parent_type = database_prepare( req, "SELECT id, user_id, timestamp, parent_post_id, subject, body, type, group_id, mode FROM posts WHERE parent_post_id=? AND type=?" );
+    req->stmt_find_post = database_prepare( req, "SELECT id, user_id, timestamp, parent_post_id, subject, body, type, group_id, mode FROM posts WHERE id=? LIMIT 1" );
+    req->stmt_power_edit_post = database_prepare( req, "UPDATE posts SET subject=?, body=?, parent_post_id=? WHERE id=?" );
+    req->stmt_edit_post = database_prepare( req, "UPDATE posts SET user_id=?, timestamp=?, parent_post_id=?, subject=?, body=?, type=?, group_id=?, mode=? WHERE id=?" );
+    req->stmt_delete_post = database_prepare( req, "DELETE FROM posts WHERE id=?" );
+    req->stmt_get_parent_post = database_prepare( req, "SELECT parent_post_id FROM posts WHERE id=?" );
+    req->stmt_root_posts = database_prepare( req, "SELECT parent_post_id FROM posts" );
 
-    req->stmtTopicPosts = database_prepare( "SELECT `id`, `user_id`, `timestamp`, `parent_post_id`, `subject`, `body` FROM `posts` WHERE `parent_post_id`=? ORDER BY `timestamp` DESC" );
-
-    req->stmtCountChildPosts = database_prepare( "SELECT COUNT() FROM `posts` WHERE `parent_post_id`=?" );
+    req->stmt_topic_posts = database_prepare( req, "SELECT id, user_id, timestamp, parent_post_id, subject, body, type, group_id, mode FROM posts WHERE parent_post_id=? ORDER BY timestamp DESC LIMIT ? OFFSET ?" );
+    req->stmt_count_child_posts = database_prepare( req, "SELECT COUNT() FROM posts WHERE parent_post_id=?" );
 
     return true;
 }
 
 // #############################################################################
 
-bool post_deinit( struct NNCMS_THREAD_INFO *req )
+bool post_local_destroy( struct NNCMS_THREAD_INFO *req )
 {
     // Free prepared statements
-    database_finalize( req->stmtAddPost );
-    database_finalize( req->stmtFindPost );
-    database_finalize( req->stmtPowerEditPost );
-    database_finalize( req->stmtEditPost );
-    database_finalize( req->stmtDeletePost );
-    database_finalize( req->stmtGetParentPost );
-    database_finalize( req->stmtRootPosts );
+    database_finalize( req, req->stmt_add_post );
+    database_finalize( req, req->stmt_find_post_parent_type );
+    database_finalize( req, req->stmt_find_post );
+    database_finalize( req, req->stmt_power_edit_post );
+    database_finalize( req, req->stmt_edit_post );
+    database_finalize( req, req->stmt_delete_post );
+    database_finalize( req, req->stmt_get_parent_post );
+    database_finalize( req, req->stmt_root_posts );
 
-    database_finalize( req->stmtTopicPosts );
+    database_finalize( req, req->stmt_topic_posts );
 
-    database_finalize( req->stmtCountChildPosts );
+    database_finalize( req, req->stmt_count_child_posts );
 
     return true;
 }
 
 // #############################################################################
+
+void post_get_access( struct NNCMS_THREAD_INFO *req, char *user_id, char *post_id, bool *read_access_out, bool *write_access_out, bool *exec_access_out )
+{
+    bool read_access = false;
+    bool write_access = false;
+    bool exec_access = false;
+    
+    // Get group list of the user
+    struct NNCMS_USERGROUP_ROW *group_row = NULL;
+    GArray *user_groups = NULL;
+    char **user_group_array = NULL;
+    if( user_id != NULL )
+    {
+        database_bind_text( req->stmt_find_ug_by_user_id, 1, user_id );
+        group_row = (struct NNCMS_USERGROUP_ROW *) database_steps( req, req->stmt_find_ug_by_user_id );
+        if( group_row == NULL ) return;
+        user_groups = g_array_new( true, false, sizeof(char *) );
+        for( int i = 0; group_row != NULL && group_row[i].id != NULL; i = i + 1 )
+        {
+            g_array_append_vals( user_groups, &group_row[i].group_id, 1 );
+        }
+        user_group_array = (char **) user_groups->data;
+    }
+    else
+    {
+        // Current user
+        user_id = req->user_id;
+        user_group_array = req->group_id;
+    }
+
+    struct NNCMS_POST_ROW *post_row = NULL;
+    database_bind_text( req->stmt_find_post, 1, post_id );
+    while( 1 )
+    {
+        // Find rows
+        post_row = (struct NNCMS_POST_ROW *) database_steps( req, req->stmt_find_post );
+        if( post_row == NULL )
+        {
+            goto post_no_access;
+        }
+        
+        if( post_row->mode[0] != 0 )
+            break;
+        
+        // Inherit from parent
+        database_bind_int( req->stmt_find_post, 1, atoi( post_row->parent_post_id ) );
+        database_free_rows( (struct NNCMS_ROW *) post_row );
+    }
+    
+    // Convert string mode to integer
+    unsigned int post_mode = (unsigned int) g_ascii_strtoll( post_row->mode, NULL, 16 );
+    
+    // owner  group  other
+    //
+    //  rwx    rwx    rwx
+    // 0110   0100   0100
+    //
+    
+    //  check   access  result
+    //  0       0       1
+    //  0       1       1
+    //  1       0       0
+    //  1       1       1
+    
+    read_access |= post_mode & NNCMS_IROTH;
+    write_access |= post_mode & NNCMS_IWOTH;
+    exec_access |= post_mode & NNCMS_IXOTH;
+    
+    for( int i = 0; user_group_array != NULL && user_group_array[i] != NULL; i = i + 1 )
+    {
+        // Check group access
+        if( strcmp( post_row->group_id, user_group_array[i] ) == 0 )
+        {
+            read_access |= post_mode & NNCMS_IRGRP;
+            write_access |= post_mode & NNCMS_IWGRP;
+            exec_access |= post_mode & NNCMS_IXGRP;
+        }
+    }
+    
+    // Check if user is owner of this post
+    if( strcmp( post_row->user_id, user_id ) == 0 )
+    {
+        read_access |= post_mode & NNCMS_IRUSR;
+        write_access |= post_mode & NNCMS_IWUSR;
+        exec_access |= post_mode & NNCMS_IXUSR;
+    }
+
+    // Not needed now
+    database_free_rows( (struct NNCMS_ROW *) post_row );
+
+post_no_access:
+    if( group_row != NULL ) database_free_rows( (struct NNCMS_ROW *) group_row );
+    if( user_groups != NULL ) g_array_free( user_groups, true );
+
+    if( read_access_out )   *read_access_out = read_access;
+    if( write_access_out )   *write_access_out = write_access;
+    if( exec_access_out )   *exec_access_out = exec_access;
+}
+
+bool post_check_perm( struct NNCMS_THREAD_INFO *req, char *user_id, char *post_id, bool read_check, bool write_check, bool exec_check )
+{
+    bool read_access = false;
+    bool write_access = false;
+    bool exec_access = false;
+    post_get_access( req, user_id, post_id, &read_access, &write_access, &exec_access );
+
+    if( (read_check == true && read_access == false) ||
+        (write_check == true && write_access == false) ||
+        (exec_check == true && exec_access == false) )
+    return false;
+
+    return true;
+}
+
+// #############################################################################
+
+struct NNCMS_FORM *post_add_form( struct NNCMS_THREAD_INFO *req, struct NNCMS_POST_ROW *post_row )
+{
+    // Fields
+    struct NNCMS_POST_ADD_FIELDS *fields = memdup( &post_add_fields, sizeof(post_add_fields) );
+    fields->post_user_id.value = req->user_id;
+    fields->post_parent_post_id.value = (post_row != NULL ? post_row->id : NULL);
+    fields->post_subject.value = (post_row != NULL ? post_row->subject : NULL);
+    fields->referer.value = req->referer;
+    fields->fkey.value = req->session_id;
+
+    if( acl_check_perm( req, "post", NULL, "chown" ) == false )
+    {
+        fields->post_user_id.editable = false;
+        fields->post_group_id.editable = false;
+        fields->post_group_id.viewable = false;
+    }
+    
+    if( acl_check_perm( req, "post", NULL, "chmod" ) == false )
+    {
+        fields->post_mode.editable = false;
+        fields->post_mode.viewable = false;
+    }
+
+    struct NNCMS_VARIABLE vars[] =
+        {
+            { .name = "post_id", .value.string = (post_row != NULL ? post_row->id : NULL), .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE } // Terminating row
+        };
+    char *action = main_temp_link( req, "post_add", NULL, vars );
+
+    // Form
+    struct NNCMS_FORM *form = MALLOC( sizeof(struct NNCMS_FORM) * 1 );
+    *form =
+    (struct NNCMS_FORM) {
+        .name = "post_add", .action = action, .method = "POST",
+        .title = NULL, .help = NULL,
+        .header_html = NULL, .footer_html = NULL,
+        .fields = (struct NNCMS_FIELD *) fields
+    };
+
+    garbage_add( req->loop_garbage, fields, MEMORY_GARBAGE_FREE );
+    garbage_add( req->loop_garbage, form, MEMORY_GARBAGE_FREE );
+
+    return form;
+}
+
 
 void post_add( struct NNCMS_THREAD_INFO *req )
 {
-    // Page header
-    char *szHeader = "Post add";
+    // Check user permission to edit ACLs
+    if( acl_check_perm( req, "post", NULL, "add" ) == false )
+    {
+        main_message( req, "not_allowed" );
+        return;
+    }
+    bool is_devel = acl_check_perm( req, "post", NULL, "devel" );
 
-    // Specify values for template
-    struct NNCMS_TEMPLATE_TAGS frameTemplate[] =
-        {
-            { /* szName */ "header", /* szValue */ szHeader },
-            { /* szName */ "content",  /* szValue */ req->lpszBuffer },
-            { /* szName */ "icon",  /* szValue */ "images/actions/mail-message-new.png" },
-            { /* szName */ "homeURL",  /* szValue */ homeURL },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-
-    // Create smart buffers
-    struct NNCMS_BUFFER smartBuffer =
-        {
-            /* lpBuffer */ req->lpszBuffer,
-            /* nSize */ NNCMS_PAGE_SIZE_MAX,
-            /* nPos */ 0
-        };
-    *smartBuffer.lpBuffer = 0;
-
-    // Check session
-    user_check_session( req );
-
-    // Try to get post id
-    struct NNCMS_VARIABLE *httpVarId = main_get_variable( req, "post_parent" );
+    // Get Id
+    char *httpVarId = main_variable_get( req, req->get_tree, "post_id" );
     if( httpVarId == 0 )
     {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "No data";
-        log_printf( req, LOG_NOTICE, "Post::Add: %s", frameTemplate[1].szValue );
-        goto output;
+        main_vmessage( req, "no_data" );
+        return;
     }
 
-    // Filter evil data
-    filter_truncate_string( httpVarId->lpszValue, NNCMS_PATH_LEN_MAX );
-    filter_table_replace( httpVarId->lpszValue, (unsigned int) strlen( httpVarId->lpszValue ), numericFilter );
-    unsigned int uPostId = atoi( httpVarId->lpszValue );
-
-    // Check if user can add post
-    if( post_tree_check_perm( req, httpVarId->lpszValue, "add", POST_CHECK_PERM_DEPTH ) == false )
+    if( post_check_perm( req, NULL, httpVarId, false, false, true ) == false )
     {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Not allowed";
-        log_printf( req, LOG_NOTICE, "Post::Add: %s", frameTemplate[1].szValue );
-        goto output;
+        main_vmessage( req, "not_allowed" );
+        return;
     }
 
-    // Did user pressed button?
-    struct NNCMS_VARIABLE *httpVarAdd = main_get_variable( req, "post_add" );
-    if( httpVarAdd != 0 )
+    // Find row by id
+    database_bind_text( req->stmt_find_post, 1, httpVarId );
+    struct NNCMS_POST_ROW *post_row = (struct NNCMS_POST_ROW *) database_steps( req, req->stmt_find_post );
+    if( post_row != NULL )
+    {
+        garbage_add( req->loop_garbage, post_row, MEMORY_GARBAGE_DB_FREE );
+    }
+
+    // Page title
+    struct NNCMS_VARIABLE vars[] =
+        {
+            { .name = "post_parent_post_id", .value.string = (post_row != NULL ? post_row->parent_post_id : NULL), .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE } // Terminating row
+        };
+    char *header_str = i18n_string_temp( req, "post_add_header", vars );
+
+    // Fields
+    struct NNCMS_POST_ADD_FIELDS *fields = memdup( &post_add_fields, sizeof(post_add_fields) );
+    garbage_add( req->loop_garbage, fields, MEMORY_GARBAGE_FREE );    
+    fields->post_user_id.value = req->user_id;
+    fields->post_parent_post_id.value = (post_row != NULL ? post_row->id : NULL);
+    fields->post_subject.value = (post_row != NULL ? post_row->subject : NULL);
+    fields->post_type.value = "forum";
+    fields->referer.value = req->referer;
+    fields->fkey.value = req->session_id;
+
+    if( acl_check_perm( req, "post", NULL, "chown" ) == false )
+    {
+        fields->post_user_id.editable = false;
+        fields->post_group_id.editable = false;
+        fields->post_group_id.viewable = false;
+    }
+    
+    if( acl_check_perm( req, "post", NULL, "chmod" ) == false )
+    {
+        fields->post_mode.editable = false;
+        fields->post_mode.viewable = false;
+    }
+
+    if( is_devel == false )
+    {
+        fields->post_parent_post_id.type = NNCMS_FIELD_HIDDEN;
+        fields->post_type.editable = false;
+        fields->post_type.viewable = false;
+    }
+
+    // Select valid post type
+    enum NNCMS_POST_TYPE post_type = NNCMS_POST_NONE;
+    if( post_row != NULL )
+    {
+        post_type = filter_str_to_int( post_row->type, post_type_list );
+        switch( post_type )
+        {
+            case NNCMS_POST_FORUM: { fields->post_type.value = "group"; break; }
+            case NNCMS_POST_GROUP: { fields->post_type.value = "subforum"; break; }
+            case NNCMS_POST_SUBFORUM: { fields->post_type.value = "topic"; break; }
+            case NNCMS_POST_TOPIC: { fields->post_type.value = "msg"; break; }
+            default:
+            case NNCMS_POST_MESSAGE: { fields->post_type.value = "msg"; break; }
+        }
+    }
+    
+    /*if( is_devel == false )
+    {
+        if( post_type != NNCMS_POST_SUBFORUM && post_type != NNCMS_POST_TOPIC )
+        {
+            main_vmessage( req, "not_allowed" );
+            return;
+        }
+    }*/
+
+    //
+    // Check if user commit changes
+    //
+    char *httpVarEdit = main_variable_get( req, req->post_tree, "post_add" );
+    if( httpVarEdit != 0 )
     {
         // Anti CSRF / XSRF vulnerabilities
         if( user_xsrf( req ) == false )
         {
-            frameTemplate[0].szValue = "Error";
-            frameTemplate[1].szValue = "Unequal keys";
-            goto output;
+            main_message( req, "xsrf_fail" );
+            return;
         }
 
-        // Get other data
-        struct NNCMS_VARIABLE *httpVarSubject = main_get_variable( req, "post_subject" );
-        struct NNCMS_VARIABLE *httpVarBody = main_get_variable( req, "post_body" );
-        if( httpVarSubject == 0 || httpVarBody == 0 )
+        // Retrieve GET data
+        form_post_data( req, (struct NNCMS_FIELD *) fields );
+
+        // Validate the data
+        bool valid = field_validate( req, (struct NNCMS_FIELD *) fields );
+        if( valid == true )
         {
-            frameTemplate[0].szValue = "Error";
-            frameTemplate[1].szValue = "No data";
-            log_printf( req, LOG_NOTICE, "Post::Add: %s", frameTemplate[1].szValue );
-            goto output;
+            // Query Database
+            database_bind_text( req->stmt_add_post, 1, req->user_id );
+            database_bind_int( req->stmt_add_post, 2, time( 0 ) );
+            database_bind_text( req->stmt_add_post, 3, fields->post_parent_post_id.value );
+            database_bind_text( req->stmt_add_post, 4, fields->post_subject.value );
+            database_bind_text( req->stmt_add_post, 5, fields->post_body.value );
+            database_bind_text( req->stmt_add_post, 6, fields->post_type.value );
+            database_bind_text( req->stmt_add_post, 7, fields->post_group_id.value );
+            database_bind_text( req->stmt_add_post, 8, fields->post_mode.value );
+            database_steps( req, req->stmt_add_post );
+            int post_id = database_last_rowid( req );
+
+            struct NNCMS_VARIABLE vars[] =
+                {
+                    { .name = "post_id", .value.integer = post_id, .type = NNCMS_TYPE_INTEGER },
+                    { .name = "post_parent_post_id", .value.string = fields->post_parent_post_id.value, .type = NNCMS_TYPE_STRING },
+                    { .type = NNCMS_TYPE_NONE } // Terminating row
+                };
+            log_vdisplayf( req, LOG_ACTION, "post_add_success", vars );
+
+            // Redirect back
+            redirect_to_referer( req );
+            return;
         }
-
-        // Filter evil data
-        filter_truncate_string( httpVarSubject->lpszValue, NNCMS_PATH_LEN_MAX );
-        filter_truncate_string( httpVarBody->lpszValue, NNCMS_PAGE_SIZE_MAX );
-
-        // Query Database
-        database_bind_text( req->stmtAddPost, 1, req->g_userid );
-        database_bind_int( req->stmtAddPost, 2, time( 0 ) );
-        database_bind_int( req->stmtAddPost, 3, uPostId );
-        database_bind_text( req->stmtAddPost, 4, httpVarSubject->lpszValue );
-        database_bind_text( req->stmtAddPost, 5, httpVarBody->lpszValue );
-        database_steps( req->stmtAddPost );
-        log_printf( req, LOG_ACTION, "Post::Add: Post added for post #%u", uPostId );
-
-        // Redirect back
-        //redirectf( req, "%s/post_view.fcgi?post_id=%u", homeURL, uPostId );
-        redirect_to_referer( req );
-        return;
     }
-    else
+
+    // Generate links
+    //char *links = post_links( req, (post_row != NULL ? post_row->id : NULL), (post_row != NULL ? post_row->parent_post_id : NULL) );
+    char *links = "";
+
+    // Form
+    struct NNCMS_FORM form =
     {
-        // Get post for reference
-        database_bind_int( req->stmtFindPost, 1, uPostId );
-        post_get_post( req, &smartBuffer, TEMPLATE_POST_VIEW, req->stmtFindPost );
+        .name = "post_add", .action = NULL, .method = "POST",
+        .title = NULL, .help = NULL,
+        .header_html = NULL, .footer_html = NULL,
+        .fields = (struct NNCMS_FIELD *) fields
+    };
 
-        // Check if user can add post
-        post_add_form( req, &smartBuffer, httpVarId->lpszValue );
+    // Html output
+    char *html = form_html( req, &form );
+
+    // Specify values for template
+    struct NNCMS_VARIABLE frame_template[] =
+        {
+            { .name = "header", .value.string = header_str, .type = NNCMS_TYPE_STRING },
+            { .name = "content", .value.string = html, .type = NNCMS_TYPE_STRING },
+            { .name = "icon", .value.string = "images/actions/mail-message-new.png", .type = NNCMS_TYPE_STRING },
+            { .name = "homeURL", .value.string = homeURL, .type = NNCMS_TYPE_STRING },
+            { .name = "links", .value.string = links, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE } // Terminating row
+        };
+
+    {
+        if( post_row != NULL )
+        {
+            // Page title
+            struct NNCMS_VARIABLE vars[] =
+                {
+                    { .name = "post_id", .value.string = post_row->id, .type = NNCMS_TYPE_STRING },
+                    { .name = "post_subject", .value.string = post_row->subject, .type = NNCMS_TYPE_STRING },
+                    { .type = NNCMS_TYPE_NONE } // Terminating row
+                };
+            char *header_str = i18n_string_temp( req, "post_view_header", vars );
+            
+            // Html output
+            struct NNCMS_FORM *form = post_view_form( req, post_row );
+            char *html = form_html( req, form );
+
+            // Generate links
+            char *links = post_links( req, post_row->id, post_row->parent_post_id );
+
+            // Specify values for template
+            struct NNCMS_VARIABLE frame_template[] =
+                {
+                    { .name = "header", .value.string = header_str, .type = NNCMS_TYPE_STRING },
+                    { .name = "content", .value.string = html, .type = NNCMS_TYPE_STRING },
+                    { .name = "icon", .value.string = "images/stock/net/stock_mail-open.png", .type = NNCMS_TYPE_STRING },
+                    { .name = "homeURL", .value.string = homeURL, .type = NNCMS_TYPE_STRING },
+                    { .name = "links", .value.string = links, .type = NNCMS_TYPE_STRING },
+                    { .type = NNCMS_TYPE_NONE } // Terminating row
+                };
+
+            // Make a cute frame
+            template_hparse( req, "frame.html", req->frame, frame_template );
+        }
     }
 
-output:
     // Make a cute frame
-    template_iparse( req, TEMPLATE_FRAME, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, frameTemplate );
+    template_hparse( req, "frame.html", req->frame, frame_template );
 
     // Send generated html to client
-    main_output( req, szHeader, req->lpszFrame, 0 );
-}
-
-// #############################################################################
-
-void post_reply( struct NNCMS_THREAD_INFO *req )
-{
-    // Page header
-    char *szHeader = "Post reply";
-
-    // Specify values for template
-    struct NNCMS_TEMPLATE_TAGS frameTemplate[] =
-        {
-            { /* szName */ "header", /* szValue */ szHeader },
-            { /* szName */ "content",  /* szValue */ req->lpszBuffer },
-            { /* szName */ "icon",  /* szValue */ "images/actions/mail-message-new.png" },
-            { /* szName */ "homeURL",  /* szValue */ homeURL },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-
-    // Create smart buffers
-    struct NNCMS_BUFFER smartBuffer =
-        {
-            /* lpBuffer */ req->lpszBuffer,
-            /* nSize */ NNCMS_PAGE_SIZE_MAX,
-            /* nPos */ 0
-        };
-    *smartBuffer.lpBuffer = 0;
-
-    // Check session
-    user_check_session( req );
-
-    // Try to get post id
-    struct NNCMS_VARIABLE *httpVarId = main_get_variable( req, "post_parent" );
-    if( httpVarId == 0 )
-    {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "No data";
-        log_printf( req, LOG_NOTICE, "Post::Reply: %s", frameTemplate[1].szValue );
-        goto output;
-    }
-
-    // Filter evil data
-    filter_truncate_string( httpVarId->lpszValue, NNCMS_PATH_LEN_MAX );
-    filter_table_replace( httpVarId->lpszValue, (unsigned int) strlen( httpVarId->lpszValue ), numericFilter );
-    unsigned int uPostId = atoi( httpVarId->lpszValue );
-
-    // Check if user can add post
-    if( post_tree_check_perm( req, httpVarId->lpszValue, "reply", nPostDepth + 1 ) == false )
-    {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Not allowed";
-        log_printf( req, LOG_NOTICE, "Post::Reply: %s", frameTemplate[1].szValue );
-        goto output;
-    }
-
-    // Did user pressed button?
-    struct NNCMS_VARIABLE *httpVarReply = main_get_variable( req, "post_reply" );
-    if( httpVarReply != 0 )
-    {
-        // Anti CSRF / XSRF vulnerabilities
-        if( user_xsrf( req ) == false )
-        {
-            frameTemplate[0].szValue = "Error";
-            frameTemplate[1].szValue = "Unequal keys";
-            goto output;
-        }
-
-        // Get other data
-        struct NNCMS_VARIABLE *httpVarSubject = main_get_variable( req, "post_subject" );
-        struct NNCMS_VARIABLE *httpVarBody = main_get_variable( req, "post_body" );
-        if( httpVarSubject == 0 || httpVarBody == 0 )
-        {
-            frameTemplate[0].szValue = "Error";
-            frameTemplate[1].szValue = "No data";
-            log_printf( req, LOG_NOTICE, "Post::Reply: %s", frameTemplate[1].szValue );
-            goto output;
-        }
-
-        // Filter evil data
-        filter_truncate_string( httpVarSubject->lpszValue, NNCMS_PATH_LEN_MAX );
-        filter_truncate_string( httpVarBody->lpszValue, NNCMS_PAGE_SIZE_MAX );
-
-        // Query Database
-        database_bind_text( req->stmtAddPost, 1, req->g_userid );
-        database_bind_int( req->stmtAddPost, 2, time( 0 ) );
-        database_bind_int( req->stmtAddPost, 3, uPostId );
-        database_bind_text( req->stmtAddPost, 4, httpVarSubject->lpszValue );
-        database_bind_text( req->stmtAddPost, 5, httpVarBody->lpszValue );
-        database_steps( req->stmtAddPost );
-        log_printf( req, LOG_ACTION, "Post::Reply: Post added for post #%u", uPostId );
-
-        // Redirect back
-        //redirectf( req, "%s/post_view.fcgi?post_id=%u", homeURL, uPostId );
-        redirect_to_referer( req );
-        return;
-    }
-    else
-    {
-        // Get post for reference
-        database_bind_int( req->stmtFindPost, 1, uPostId );
-        post_get_post( req, &smartBuffer, TEMPLATE_POST_VIEW, req->stmtFindPost );
-
-        // Check if user can add post
-        post_reply_form( req, &smartBuffer, httpVarId->lpszValue );
-    }
-
-output:
-    // Make a cute frame
-    template_iparse( req, TEMPLATE_FRAME, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, frameTemplate );
-
-    // Send generated html to client
-    main_output( req, szHeader, req->lpszFrame, 0 );
-}
-
-// #############################################################################
-
-bool post_add_form( struct NNCMS_THREAD_INFO *req, struct NNCMS_BUFFER *smartBuffer, char *lpszPostParent )
-{
-    // Page header
-    char *szHeader = "Add post";
-
-    // Specify values for template
-    struct NNCMS_TEMPLATE_TAGS frameTemplate[] =
-        {
-            { /* szName */ "header", /* szValue */ szHeader },
-            { /* szName */ "content",  /* szValue */ req->lpszFrame },
-            { /* szName */ "icon",  /* szValue */ "images/actions/mail-message-new.png" },
-            { /* szName */ "homeURL",  /* szValue */ homeURL },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-    struct NNCMS_TEMPLATE_TAGS addTemplate[] =
-        {
-            { /* szName */ "homeURL", /* szValue */ homeURL },
-            { /* szName */ "referer", /* szValue */ FCGX_GetParam( "HTTP_REFERER", req->fcgi_request->envp ) },
-            { /* szName */ "user_id", /* szValue */ 0 },
-            { /* szName */ "user_nick", /* szValue */ 0 },
-            { /* szName */ "user_name", /* szValue */ 0 },
-            { /* szName */ "post_parent", /* szValue */ 0 },
-            { /* szName */ "post_subject", /* szValue */ 0 },
-            { /* szName */ "fkey", /* szValue */ req->g_sessionid },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-
-    // Get user name and user nick
-    database_bind_text( req->stmtFindUserById, 1, req->g_userid );
-    struct NNCMS_ROW *userRow = database_steps( req->stmtFindUserById );
-
-    // Fill add template
-    if( userRow == 0 )
-    {
-        addTemplate[2].szValue = 0; // User Id
-        addTemplate[3].szValue = "Anonymous"; // User Nick
-        addTemplate[4].szValue = "guest"; // User Name
-    }
-    else
-    {
-        addTemplate[2].szValue = userRow->szColValue[0]; // User Id
-        addTemplate[3].szValue = userRow->szColValue[2]; // User Nick
-        addTemplate[4].szValue = userRow->szColValue[1]; // User Name
-    }
-    addTemplate[5].szValue = lpszPostParent;
-
-    // Load subject
-    database_bind_text( req->stmtFindPost, 1, lpszPostParent );
-    struct NNCMS_ROW *postRow = database_steps( req->stmtFindPost );
-    if( postRow != 0 )
-        addTemplate[6].szValue = postRow->szColValue[4];
-
-    // Load template
-    template_iparse( req, TEMPLATE_POST_ADD, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, addTemplate );
-
-    // Put form in frame
-    template_iparse( req, TEMPLATE_FRAME, req->lpszTemp, NNCMS_PAGE_SIZE_MAX, frameTemplate );
-    smart_cat( smartBuffer, req->lpszTemp );
-
-    // Free rows after parsing the template
-    database_freeRows( postRow );
-    database_freeRows( userRow );
-
-    return true;
-}
-
-// #############################################################################
-
-bool post_reply_form( struct NNCMS_THREAD_INFO *req, struct NNCMS_BUFFER *smartBuffer, char *lpszPostParent )
-{
-    // Page header
-    char *szHeader = "Reply post";
-
-    // Specify values for template
-    struct NNCMS_TEMPLATE_TAGS frameTemplate[] =
-        {
-            { /* szName */ "header", /* szValue */ szHeader },
-            { /* szName */ "content",  /* szValue */ req->lpszFrame },
-            { /* szName */ "icon",  /* szValue */ "images/actions/mail-message-new.png" },
-            { /* szName */ "homeURL",  /* szValue */ homeURL },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-    struct NNCMS_TEMPLATE_TAGS replyTemplate[] =
-        {
-            { /* szName */ "homeURL", /* szValue */ homeURL },
-            { /* szName */ "referer", /* szValue */ FCGX_GetParam( "HTTP_REFERER", req->fcgi_request->envp ) },
-            { /* szName */ "user_id", /* szValue */ 0 },
-            { /* szName */ "user_nick", /* szValue */ 0 },
-            { /* szName */ "user_name", /* szValue */ 0 },
-            { /* szName */ "post_parent", /* szValue */ 0 },
-            { /* szName */ "post_subject", /* szValue */ 0 },
-            { /* szName */ "fkey", /* szValue */ req->g_sessionid },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-
-    // Get user name and user nick
-    database_bind_text( req->stmtFindUserById, 1, req->g_userid );
-    struct NNCMS_ROW *userRow = database_steps( req->stmtFindUserById );
-
-    // Fill add template
-    if( userRow == 0 )
-    {
-        replyTemplate[2].szValue = 0; // User Id
-        replyTemplate[3].szValue = "Anonymous"; // User Nick
-        replyTemplate[4].szValue = "guest"; // User Name
-    }
-    else
-    {
-        replyTemplate[2].szValue = userRow->szColValue[0]; // User Id
-        replyTemplate[3].szValue = userRow->szColValue[2]; // User Nick
-        replyTemplate[4].szValue = userRow->szColValue[1]; // User Name
-    }
-    replyTemplate[5].szValue = lpszPostParent;
-
-    // Load subject
-    database_bind_text( req->stmtFindPost, 1, lpszPostParent );
-    struct NNCMS_ROW *postRow = database_steps( req->stmtFindPost );
-    if( postRow != 0 )
-        replyTemplate[6].szValue = postRow->szColValue[4];
-
-    // Load template
-    template_iparse( req, TEMPLATE_POST_REPLY, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, replyTemplate );
-
-    // Put form in frame
-    template_iparse( req, TEMPLATE_FRAME, req->lpszTemp, NNCMS_PAGE_SIZE_MAX, frameTemplate );
-    smart_cat( smartBuffer, req->lpszTemp );
-
-    // Free rows after parsing the template
-    database_freeRows( postRow );
-    database_freeRows( userRow );
-
-    return true;
+    main_output( req, header_str, req->frame->str, 0 );
 }
 
 // #############################################################################
 
 void post_edit( struct NNCMS_THREAD_INFO *req )
 {
-    // Page header
-    char *szHeader = "Post edit";
+    // Check user permission to edit ACLs
+    if( acl_check_perm( req, "post", NULL, "edit" ) == false )
+    {
+        main_message( req, "not_allowed" );
+        return;
+    }
 
-    // Specify values for template
-    struct NNCMS_TEMPLATE_TAGS frameTemplate[] =
-        {
-            { /* szName */ "header", /* szValue */ szHeader },
-            { /* szName */ "content",  /* szValue */ req->lpszBuffer },
-            { /* szName */ "icon",  /* szValue */ "images/actions/gtk-edit.png" },
-            { /* szName */ "homeURL",  /* szValue */ homeURL },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-    struct NNCMS_TEMPLATE_TAGS editTemplate[] =
-        {
-            /* 00 */ { /* szName */ "homeURL", /* szValue */ homeURL },
-            /* 01 */ { /* szName */ "referer", /* szValue */ FCGX_GetParam( "HTTP_REFERER", req->fcgi_request->envp ) },
-            /* 02 */ { /* szName */ "post_id", /* szValue */ 0 },
-            /* 03 */ { /* szName */ "user_id", /* szValue */ 0 },
-            /* 04 */ { /* szName */ "user_name", /* szValue */ 0 },
-            /* 05 */ { /* szName */ "user_nick", /* szValue */ 0 },
-            /* 06 */ { /* szName */ "post_timestamp", /* szValue */ 0 },
-            /* 07 */ { /* szName */ "post_date", /* szValue */ 0 },
-            /* 08 */ { /* szName */ "post_parent", /* szValue */ 0 },
-            /* 09 */ { /* szName */ "post_subject", /* szValue */ 0 },
-            /* 10 */ { /* szName */ "post_body", /* szValue */ 0 },
-            /* 11 */ { /* szName */ "fkey", /* szValue */ 0 },
-            /* 12 */ { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-
-    // Check session
-    user_check_session( req );
-    editTemplate[11].szValue = req->g_sessionid;
-
-    // Try to get post id
-    struct NNCMS_VARIABLE *httpVarId = main_get_variable( req, "post_id" );
+    // Get Id
+    char *httpVarId = main_variable_get( req, req->get_tree, "post_id" );
     if( httpVarId == 0 )
     {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "No data";
-        log_printf( req, LOG_NOTICE, "Post::Edit: %s", frameTemplate[1].szValue );
-        goto output;
+        main_vmessage( req, "no_data" );
+        return;
     }
 
-    // Filter evil data
-    filter_truncate_string( httpVarId->lpszValue, NNCMS_PATH_LEN_MAX );
-    filter_table_replace( httpVarId->lpszValue, (unsigned int) strlen( httpVarId->lpszValue ), numericFilter );
-    unsigned int uPostId = atoi( httpVarId->lpszValue );
-
-    // Ok, try to find selected post id
-    database_bind_int( req->stmtFindPost, 1, uPostId );
-    struct NNCMS_ROW *postRow = database_steps( req->stmtFindPost );
-    if( postRow == 0 )
+    if( post_check_perm( req, NULL, httpVarId, true, true, false ) == false )
     {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Post not found";
-        log_printf( req, LOG_NOTICE, "Post::Edit: %s (id = %u)", frameTemplate[1].szValue, uPostId );
-        goto output;
+        main_vmessage( req, "not_allowed" );
+        return;
     }
 
-    // Check if user can add post
-    if( acl_check_perm( req, "post", req->g_username, "edit" ) == false )
+    // Find row by id
+    database_bind_text( req->stmt_find_post, 1, httpVarId );
+    struct NNCMS_POST_ROW *post_row = (struct NNCMS_POST_ROW *) database_steps( req, req->stmt_find_post );
+    if( post_row == 0 )
     {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Not allowed";
-        log_printf( req, LOG_NOTICE, "Post::Edit: %s", frameTemplate[1].szValue );
-        goto output;
+        main_vmessage( req, "not_found" );
+        return;
     }
+    garbage_add( req->loop_garbage, post_row, MEMORY_GARBAGE_DB_FREE );
 
-    // Did user pressed button?
-    struct NNCMS_VARIABLE *httpVarEdit = main_get_variable( req, "post_edit" );
+    // Page title
+    struct NNCMS_VARIABLE vars[] =
+        {
+            { .name = "post_id", .value.string = post_row->id, .type = NNCMS_TYPE_STRING },
+            { .name = "post_subject", .value.string = post_row->subject, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE } // Terminating row
+        };
+    char *header_str = i18n_string_temp( req, "post_edit_header", vars );
+
+    // Fields
+    struct NNCMS_POST_EDIT_FIELDS *fields = memdup_temp( req, &post_edit_fields, sizeof(post_edit_fields) );
+    fields->post_id.value = post_row->id;
+    fields->post_user_id.value = post_row->user_id;
+    fields->post_group_id.value = post_row->group_id;
+    fields->post_parent_post_id.value = post_row->parent_post_id;
+    fields->post_timestamp.value = post_row->timestamp;
+    fields->post_subject.value = post_row->subject;
+    fields->post_body.value = post_row->body;
+    fields->post_type.value = post_row->type;
+    fields->post_mode.value = post_row->mode;
+    fields->referer.value = req->referer;
+    fields->fkey.value = req->session_id;
+
+    //
+    // Check if user commit changes
+    //
+    char *httpVarEdit = main_variable_get( req, req->post_tree, "post_edit" );
     if( httpVarEdit != 0 )
     {
         // Anti CSRF / XSRF vulnerabilities
         if( user_xsrf( req ) == false )
         {
-            frameTemplate[0].szValue = "Error";
-            frameTemplate[1].szValue = "Unequal keys";
-            goto output;
+            main_message( req, "xsrf_fail" );
+            return;
         }
 
-        // Get other data
-        struct NNCMS_VARIABLE *httpVarSubject = main_get_variable( req, "post_subject" );
-        struct NNCMS_VARIABLE *httpVarBody = main_get_variable( req, "post_body" );
-        struct NNCMS_VARIABLE *httpVarParent = main_get_variable( req, "post_parent" );
-        if( httpVarSubject == 0 || httpVarBody == 0 || httpVarParent == 0 )
-        {
-            frameTemplate[0].szValue = "Error";
-            frameTemplate[1].szValue = "No data";
-            log_printf( req, LOG_NOTICE, "Post::Edit: %s", frameTemplate[1].szValue );
-            goto cleanup;
-        }
+        // Retrieve GET data
+        form_post_data( req, (struct NNCMS_FIELD *) fields );
 
-        // Filter evil data
-        filter_truncate_string( httpVarSubject->lpszValue, NNCMS_PATH_LEN_MAX );
-        filter_truncate_string( httpVarBody->lpszValue, NNCMS_PAGE_SIZE_MAX );
-        filter_truncate_string( httpVarParent->lpszValue, NNCMS_PATH_LEN_MAX );
+        // Validate the data
+        // todo
 
         // Query Database
-        database_bind_text( req->stmtPowerEditPost, 1, httpVarSubject->lpszValue );
-        database_bind_text( req->stmtPowerEditPost, 2, httpVarBody->lpszValue );
-        database_bind_int( req->stmtPowerEditPost, 3, atoi(httpVarParent->lpszValue) );
-        database_bind_int( req->stmtPowerEditPost, 4, uPostId );
-        database_steps( req->stmtPowerEditPost );
-        log_printf( req, LOG_ACTION, "Post::Edit: Post #%u editted", uPostId );
+        database_bind_text( req->stmt_edit_post, 1, fields->post_user_id.value );
+        database_bind_text( req->stmt_edit_post, 2, fields->post_timestamp.value );
+        database_bind_text( req->stmt_edit_post, 3, fields->post_parent_post_id.value );
+        database_bind_text( req->stmt_edit_post, 4, fields->post_subject.value );
+        database_bind_text( req->stmt_edit_post, 5, fields->post_body.value );
+        database_bind_text( req->stmt_edit_post, 6, fields->post_type.value );
+        database_bind_text( req->stmt_edit_post, 7, fields->post_group_id.value );
+        database_bind_text( req->stmt_edit_post, 8, fields->post_mode.value );
+        database_bind_text( req->stmt_edit_post, 9, httpVarId );
+        database_steps( req, req->stmt_edit_post );
+
+        log_vdisplayf( req, LOG_ACTION, "post_edit_success", vars );
 
         // Redirect back
-        //redirectf( req, "%s/post_view.fcgi?post_id=%u", homeURL, uPostId );
         redirect_to_referer( req );
-        database_freeRows( postRow );
         return;
     }
 
-    // Get user name and user nick
-    database_bind_text( req->stmtFindUserById, 1, postRow->szColValue[0] );
-    struct NNCMS_ROW *userRow = database_steps( req->stmtFindUserById );
+    // Generate links
+    char *links = post_links( req, post_row->id, post_row->parent_post_id );
 
-    // Fill template values
-    editTemplate[2].szValue = httpVarId->lpszValue; // Post Id
-    editTemplate[3].szValue = postRow->szColValue[1]; // User Id
-    if( userRow == 0 )
+    // Form
+    struct NNCMS_FORM form =
     {
-        editTemplate[4].szValue = "guest"; // User Name
-        editTemplate[5].szValue = "Anonymous"; // User Nick
-    }
-    else
-    {
-        editTemplate[4].szValue = userRow->szColValue[1]; // User Name
-        editTemplate[5].szValue = userRow->szColValue[2]; // User Nick
-    }
+        .name = "post_edit", .action = NULL, .method = "POST",
+        .title = NULL, .help = NULL,
+        .header_html = NULL, .footer_html = NULL,
+        .fields = (struct NNCMS_FIELD *) fields
+    };
 
-    editTemplate[6].szValue = postRow->szColValue[2]; // Timestamp
-    editTemplate[8].szValue = postRow->szColValue[3]; // Parent Post Id
-    editTemplate[9].szValue = postRow->szColValue[4]; // Subject
-    editTemplate[10].szValue = postRow->szColValue[5]; // Body
-
-    // Get time string
-    char szTime[64];
-    time_t rawTime = atoi( postRow->szColValue[2] );
-    struct tm *timeInfo = localtime( &rawTime );
-    strftime( szTime, sizeof(szTime), szTimestampFormat, timeInfo );
-    editTemplate[7].szValue = szTime; // Date
-
-    // Show edit form
-    template_iparse( req, TEMPLATE_POST_EDIT, req->lpszBuffer, NNCMS_PAGE_SIZE_MAX, editTemplate );
-
-    // Free memory after use
-    database_freeRows( userRow );
-
-cleanup:
-    database_freeRows( postRow );
-
-output:
-    // Make a cute frame
-    template_iparse( req, TEMPLATE_FRAME, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, frameTemplate );
-
-    // Send generated html to client
-    main_output( req, szHeader, req->lpszFrame, 0 );
-}
-
-// #############################################################################
-
-void post_modify( struct NNCMS_THREAD_INFO *req )
-{
-    // Page header
-    char *szHeader = "Post modify";
+    // Html output
+    char *html = form_html( req, &form );
 
     // Specify values for template
-    struct NNCMS_TEMPLATE_TAGS frameTemplate[] =
+    struct NNCMS_VARIABLE frame_template[] =
         {
-            { /* szName */ "header", /* szValue */ szHeader },
-            { /* szName */ "content",  /* szValue */ req->lpszBuffer },
-            { /* szName */ "icon",  /* szValue */ "images/actions/gtk-edit.png" },
-            { /* szName */ "homeURL",  /* szValue */ homeURL },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-    struct NNCMS_TEMPLATE_TAGS modifyTemplate[] =
-        {
-            /* 00 */ { /* szName */ "homeURL", /* szValue */ homeURL },
-            /* 01 */ { /* szName */ "referer", /* szValue */ FCGX_GetParam( "HTTP_REFERER", req->fcgi_request->envp ) },
-            /* 02 */ { /* szName */ "post_id", /* szValue */ 0 },
-            /* 03 */ { /* szName */ "user_id", /* szValue */ 0 },
-            /* 04 */ { /* szName */ "user_name", /* szValue */ 0 },
-            /* 05 */ { /* szName */ "user_nick", /* szValue */ 0 },
-            /* 06 */ { /* szName */ "post_timestamp", /* szValue */ 0 },
-            /* 07 */ { /* szName */ "post_date", /* szValue */ 0 },
-            /* 08 */ { /* szName */ "post_parent", /* szValue */ 0 },
-            /* 09 */ { /* szName */ "post_subject", /* szValue */ 0 },
-            /* 10 */ { /* szName */ "post_body", /* szValue */ 0 },
-            /* 11 */ { /* szName */ "fkey", /* szValue */ 0 },
-            /* 12 */ { /* szName */ 0, /* szValue */ 0 } // Terminating row
+            { .name = "header", .value.string = header_str, .type = NNCMS_TYPE_STRING },
+            { .name = "content", .value.string = html, .type = NNCMS_TYPE_STRING },
+            { .name = "icon", .value.string = "images/actions/gtk-edit.png", .type = NNCMS_TYPE_STRING },
+            { .name = "homeURL", .value.string = homeURL, .type = NNCMS_TYPE_STRING },
+            { .name = "links", .value.string = links, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE } // Terminating row
         };
 
-    // Check session
-    user_check_session( req );
-    modifyTemplate[11].szValue = req->g_sessionid;
-
-    // Try to get post id
-    struct NNCMS_VARIABLE *httpVarId = main_get_variable( req, "post_id" );
-    if( httpVarId == 0 )
-    {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "No data";
-        log_printf( req, LOG_NOTICE, "Post::Modify: %s", frameTemplate[1].szValue );
-        goto output;
-    }
-
-    // Filter evil data
-    filter_truncate_string( httpVarId->lpszValue, NNCMS_PATH_LEN_MAX );
-    filter_table_replace( httpVarId->lpszValue, (unsigned int) strlen( httpVarId->lpszValue ), numericFilter );
-    unsigned int uPostId = atoi( httpVarId->lpszValue );
-
-    // Ok, try to find selected post id
-    database_bind_int( req->stmtFindPost, 1, uPostId );
-    struct NNCMS_ROW *postRow = database_steps( req->stmtFindPost );
-    if( postRow == 0 )
-    {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Post not found";
-        log_printf( req, LOG_NOTICE, "Post::Modify: %s (id = %u)", frameTemplate[1].szValue, uPostId );
-        goto output;
-    }
-
-    // Check if user can add post
-    if( post_tree_check_perm( req, httpVarId->lpszValue, "modify", nPostDepth + 1 ) == false ||
-        strcmp( postRow->szColValue[1], req->g_userid ) != 0 )
-    {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Not allowed";
-        log_printf( req, LOG_NOTICE, "Post::Modify: %s", frameTemplate[1].szValue );
-        goto output;
-    }
-
-    // Did user pressed button?
-    struct NNCMS_VARIABLE *httpVarModify = main_get_variable( req, "post_modify" );
-    if( httpVarModify != 0 )
-    {
-        // Anti CSRF / XSRF vulnerabilities
-        if( user_xsrf( req ) == false )
-        {
-            frameTemplate[0].szValue = "Error";
-            frameTemplate[1].szValue = "Unequal keys";
-            goto output;
-        }
-
-        // Get other data
-        struct NNCMS_VARIABLE *httpVarSubject = main_get_variable( req, "post_subject" );
-        struct NNCMS_VARIABLE *httpVarBody = main_get_variable( req, "post_body" );
-        if( httpVarSubject == 0 || httpVarBody == 0 )
-        {
-            frameTemplate[0].szValue = "Error";
-            frameTemplate[1].szValue = "No data";
-            log_printf( req, LOG_NOTICE, "Post::Modify: %s", frameTemplate[1].szValue );
-            goto cleanup;
-        }
-
-        // Filter evil data
-        filter_truncate_string( httpVarSubject->lpszValue, NNCMS_PATH_LEN_MAX );
-        filter_truncate_string( httpVarBody->lpszValue, NNCMS_PAGE_SIZE_MAX );
-
-        // Query Database
-        database_bind_text( req->stmtEditPost, 1, httpVarSubject->lpszValue );
-        database_bind_text( req->stmtEditPost, 2, httpVarBody->lpszValue );
-        database_bind_int( req->stmtEditPost, 3, uPostId );
-        database_steps( req->stmtEditPost );
-        log_printf( req, LOG_ACTION, "Post::Modify: Post #%u editted", uPostId );
-
-        // Redirect back
-        //redirectf( req, "%s/post_view.fcgi?post_id=%u", homeURL, uPostId );
-        redirect_to_referer( req );
-        database_freeRows( postRow );
-        return;
-    }
-
-    // Get user name and user nick
-    database_bind_text( req->stmtFindUserById, 1, postRow->szColValue[0] );
-    struct NNCMS_ROW *userRow = database_steps( req->stmtFindUserById );
-
-    // Fill template values
-    modifyTemplate[2].szValue = httpVarId->lpszValue; // Post Id
-    modifyTemplate[3].szValue = postRow->szColValue[1]; // User Id
-    if( userRow == 0 )
-    {
-        modifyTemplate[4].szValue = "guest"; // User Name
-        modifyTemplate[5].szValue = "Anonymous"; // User Nick
-    }
-    else
-    {
-        modifyTemplate[4].szValue = userRow->szColValue[1]; // User Name
-        modifyTemplate[5].szValue = userRow->szColValue[2]; // User Nick
-    }
-
-    modifyTemplate[6].szValue = postRow->szColValue[2]; // Timestamp
-    modifyTemplate[8].szValue = postRow->szColValue[3]; // Parent Post Id
-    modifyTemplate[9].szValue = postRow->szColValue[4]; // Subject
-    modifyTemplate[10].szValue = postRow->szColValue[5]; // Body
-
-    // Get time string
-    char szTime[64];
-    time_t rawTime = atoi( postRow->szColValue[2] );
-    struct tm *timeInfo = localtime( &rawTime );
-    strftime( szTime, sizeof(szTime), szTimestampFormat, timeInfo );
-    modifyTemplate[7].szValue = szTime; // Date
-
-    // Show edit form
-    template_iparse( req, TEMPLATE_POST_MODIFY, req->lpszBuffer, NNCMS_PAGE_SIZE_MAX, modifyTemplate );
-
-    // Free memory after use
-    database_freeRows( userRow );
-
-cleanup:
-    database_freeRows( postRow );
-
-output:
     // Make a cute frame
-    template_iparse( req, TEMPLATE_FRAME, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, frameTemplate );
+    template_hparse( req, "frame.html", req->frame, frame_template );
 
     // Send generated html to client
-    main_output( req, szHeader, req->lpszFrame, 0 );
+    main_output( req, header_str, req->frame->str, 0 );
 }
 
 // #############################################################################
 
 void post_delete( struct NNCMS_THREAD_INFO *req )
 {
-    // Page header
-    char *szHeader = "Post delete";
-
-    // Specify values for template
-    struct NNCMS_TEMPLATE_TAGS frameTemplate[] =
-        {
-            { /* szName */ "header", /* szValue */ szHeader },
-            { /* szName */ "content",  /* szValue */ req->lpszBuffer },
-            { /* szName */ "icon",  /* szValue */ "images/actions/edit-delete.png" },
-            { /* szName */ "homeURL",  /* szValue */ homeURL },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-    struct NNCMS_TEMPLATE_TAGS deleteTemplate[] =
-        {
-            /* 00 */ { /* szName */ "homeURL", /* szValue */ homeURL },
-            /* 01 */ { /* szName */ "referer", /* szValue */ FCGX_GetParam( "HTTP_REFERER", req->fcgi_request->envp ) },
-            /* 02 */ { /* szName */ "post_id", /* szValue */ 0 },
-            /* 03 */ { /* szName */ "user_id", /* szValue */ 0 },
-            /* 04 */ { /* szName */ "user_name", /* szValue */ 0 },
-            /* 05 */ { /* szName */ "user_nick", /* szValue */ 0 },
-            /* 06 */ { /* szName */ "post_timestamp", /* szValue */ 0 },
-            /* 07 */ { /* szName */ "post_date", /* szValue */ 0 },
-            /* 08 */ { /* szName */ "post_parent", /* szValue */ 0 },
-            /* 09 */ { /* szName */ "post_subject", /* szValue */ 0 },
-            /* 10 */ { /* szName */ "post_body", /* szValue */ 0 },
-            /* 11 */ { /* szName */ "fkey", /* szValue */ 0 },
-            /* 12 */ { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-
-    // Check session
-    user_check_session( req );
-    deleteTemplate[11].szValue = req->g_sessionid;
-
-    // Check if user can add post
-    if( acl_check_perm( req, "post", req->g_username, "delete" ) == false )
+    // Check user permission to delete ACLs
+    if( acl_check_perm( req, "post", NULL, "delete" ) == false )
     {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Not allowed";
-        log_printf( req, LOG_NOTICE, "Post::Delete: %s", frameTemplate[1].szValue );
-        goto output;
+        main_message( req, "not_allowed" );
+        return;
     }
 
-    // Try to get post id
-    struct NNCMS_VARIABLE *httpVarId = main_get_variable( req, "post_id" );
+    // Get Id
+    char *httpVarId = main_variable_get( req, req->get_tree, "post_id" );
     if( httpVarId == 0 )
     {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "No data";
-        log_printf( req, LOG_NOTICE, "Post::Delete: %s", frameTemplate[1].szValue );
-        goto output;
+        main_vmessage( req, "no_data" );
+        return;
     }
 
-    // Filter evil data
-    filter_truncate_string( httpVarId->lpszValue, NNCMS_PATH_LEN_MAX );
-    filter_table_replace( httpVarId->lpszValue, (unsigned int) strlen( httpVarId->lpszValue ), numericFilter );
-    unsigned int uPostId = atoi( httpVarId->lpszValue );
-
-    // Ok, try to find selected post id
-    database_bind_int( req->stmtFindPost, 1, uPostId );
-    struct NNCMS_ROW *postRow = database_steps( req->stmtFindPost );
-    if( postRow == 0 )
+    if( post_check_perm( req, NULL, httpVarId, true, true, false ) == false )
     {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Post not found";
-        log_printf( req, LOG_NOTICE, "Post::Delete: %s (id = %u)", frameTemplate[1].szValue, uPostId );
-        goto output;
+        main_vmessage( req, "not_allowed" );
+        return;
     }
+
+    // Find row by id
+    database_bind_text( req->stmt_find_post, 1, httpVarId );
+    struct NNCMS_POST_ROW *post_row = (struct NNCMS_POST_ROW *) database_steps( req, req->stmt_find_post );
+    if( post_row == 0 )
+    {
+        main_vmessage( req, "not_found" );
+        return;
+    }
+    garbage_add( req->loop_garbage, post_row, MEMORY_GARBAGE_DB_FREE );
+
+    // Page title
+    struct NNCMS_VARIABLE vars[] =
+        {
+            { .name = "post_id", .value.string = post_row->id, .type = NNCMS_TYPE_STRING },
+            { .name = "post_subject", .value.string = post_row->subject, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE } // Terminating row
+        };
+    char *header_str = i18n_string_temp( req, "post_delete_header", vars );
 
     // Did user pressed button?
-    struct NNCMS_VARIABLE *httpVarDelete = main_get_variable( req, "post_delete" );
-    if( httpVarDelete != 0 )
+    char *delete_submit = main_variable_get( req, req->post_tree, "delete_submit" );
+    if( delete_submit != 0 )
     {
         // Anti CSRF / XSRF vulnerabilities
         if( user_xsrf( req ) == false )
         {
-            frameTemplate[0].szValue = "Error";
-            frameTemplate[1].szValue = "Unequal keys";
-            goto output;
+            main_message( req, "xsrf_fail" );
+            return;
         }
 
         // Query Database
-        database_bind_int( req->stmtDeletePost, 1, uPostId );
-        database_steps( req->stmtDeletePost );
-        log_printf( req, LOG_ACTION, "Post::Delete: Post #%u deleted", uPostId );
+        database_bind_text( req->stmt_delete_post, 1, httpVarId );
+        database_steps( req, req->stmt_delete_post );
+
+        log_vdisplayf( req, LOG_ACTION, "post_delete_success", vars );
 
         // Redirect back
         redirect_to_referer( req );
-        database_freeRows( postRow );
         return;
     }
 
-    // Get user name and user nick
-    database_bind_text( req->stmtFindUserById, 1, postRow->szColValue[0] );
-    struct NNCMS_ROW *userRow = database_steps( req->stmtFindUserById );
+    // Generate links
+    char *links = post_links( req, post_row->id, post_row->parent_post_id );
 
-    // Fill template values
-    deleteTemplate[2].szValue = httpVarId->lpszValue; // Post Id
-    deleteTemplate[3].szValue = postRow->szColValue[1]; // User Id
-    if( userRow == 0 )
-    {
-        deleteTemplate[4].szValue = "guest"; // User Name
-        deleteTemplate[5].szValue = "Anonymous"; // User Nick
-    }
-    else
-    {
-        deleteTemplate[4].szValue = userRow->szColValue[1]; // User Name
-        deleteTemplate[5].szValue = userRow->szColValue[2]; // User Nick
-    }
+    // Form
+    struct NNCMS_FORM *form = template_confirm( req, post_row->subject );
 
-    deleteTemplate[6].szValue = postRow->szColValue[2]; // Timestamp
-    deleteTemplate[8].szValue = postRow->szColValue[3]; // Parent Post Id
-    deleteTemplate[9].szValue = postRow->szColValue[4]; // Subject
-    deleteTemplate[10].szValue = postRow->szColValue[5]; // Body
+    // Html output
+    char *html = form_html( req, form );
 
-    // Get time string
-    char szTime[64];
-    time_t rawTime = atoi( postRow->szColValue[2] );
-    struct tm *timeInfo = localtime( &rawTime );
-    strftime( szTime, sizeof(szTime), szTimestampFormat, timeInfo );
-    deleteTemplate[7].szValue = szTime; // Date
+    // Specify values for template
+    struct NNCMS_VARIABLE frame_template[] =
+        {
+            { .name = "header", .value.string = header_str, .type = NNCMS_TYPE_STRING },
+            { .name = "content", .value.string = html, .type = NNCMS_TYPE_STRING },
+            { .name = "icon", .value.string = "images/actions/edit-delete.png", .type = NNCMS_TYPE_STRING },
+            { .name = "homeURL", .value.string = homeURL, .type = NNCMS_TYPE_STRING },
+            { .name = "links", .value.string = links, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE } // Terminating row
+        };
 
-    // Show delete form
-    template_iparse( req, TEMPLATE_POST_DELETE, req->lpszBuffer, NNCMS_PAGE_SIZE_MAX, deleteTemplate );
-
-    // Free rows after use
-    database_freeRows( userRow );
-
-cleanup:
-    database_freeRows( postRow );
-
-output:
     // Make a cute frame
-    template_iparse( req, TEMPLATE_FRAME, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, frameTemplate );
+    template_hparse( req, "frame.html", req->frame, frame_template );
 
     // Send generated html to client
-    main_output( req, szHeader, req->lpszFrame, 0 );
+    main_output( req, header_str, req->frame->str, 0 );
 }
 
 // #############################################################################
 
-void post_remove( struct NNCMS_THREAD_INFO *req )
+void post_list( struct NNCMS_THREAD_INFO *req )
 {
-    // Page header
-    char *szHeader = "Post remove";
+    // First we check what permissions do user have
+    if( acl_check_perm( req, "post", NULL, "list" ) == false )
+    {
+        main_vmessage( req, "not_allowed" );
+        return;
+    }
+    bool is_devel = acl_check_perm( req, "post", NULL, "devel" );
 
-    // Specify values for template
-    struct NNCMS_TEMPLATE_TAGS frameTemplate[] =
-        {
-            { /* szName */ "header", /* szValue */ szHeader },
-            { /* szName */ "content",  /* szValue */ req->lpszBuffer },
-            { /* szName */ "icon",  /* szValue */ "images/actions/edit-delete.png" },
-            { /* szName */ "homeURL",  /* szValue */ homeURL },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-    struct NNCMS_TEMPLATE_TAGS removeTemplate[] =
-        {
-            /* 00 */ { /* szName */ "homeURL", /* szValue */ homeURL },
-            /* 01 */ { /* szName */ "referer", /* szValue */ FCGX_GetParam( "HTTP_REFERER", req->fcgi_request->envp ) },
-            /* 02 */ { /* szName */ "post_id", /* szValue */ 0 },
-            /* 03 */ { /* szName */ "user_id", /* szValue */ 0 },
-            /* 04 */ { /* szName */ "user_name", /* szValue */ 0 },
-            /* 05 */ { /* szName */ "user_nick", /* szValue */ 0 },
-            /* 06 */ { /* szName */ "post_timestamp", /* szValue */ 0 },
-            /* 07 */ { /* szName */ "post_date", /* szValue */ 0 },
-            /* 08 */ { /* szName */ "post_parent", /* szValue */ 0 },
-            /* 09 */ { /* szName */ "post_subject", /* szValue */ 0 },
-            /* 10 */ { /* szName */ "post_body", /* szValue */ 0 },
-            /* 11 */ { /* szName */ "fkey", /* szValue */ 0 },
-            /* 12 */ { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-
-    // Check session
-    user_check_session( req );
-    removeTemplate[11].szValue = req->g_sessionid;
-
-    // Try to get post id
-    struct NNCMS_VARIABLE *httpVarId = main_get_variable( req, "post_id" );
+    // Get Id
+    char *httpVarId = main_variable_get( req, req->get_tree, "post_id" );
     if( httpVarId == 0 )
     {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "No data";
-        log_printf( req, LOG_NOTICE, "Post::Remove: %s", frameTemplate[1].szValue );
-        goto output;
-    }
-
-    // Filter evil data
-    filter_truncate_string( httpVarId->lpszValue, NNCMS_PATH_LEN_MAX );
-    filter_table_replace( httpVarId->lpszValue, (unsigned int) strlen( httpVarId->lpszValue ), numericFilter );
-    unsigned int uPostId = atoi( httpVarId->lpszValue );
-
-    // Ok, try to find selected post id
-    database_bind_int( req->stmtFindPost, 1, uPostId );
-    struct NNCMS_ROW *postRow = database_steps( req->stmtFindPost );
-    if( postRow == 0 )
-    {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Post not found";
-        log_printf( req, LOG_NOTICE, "Post::Remove: %s (id = %u)", frameTemplate[1].szValue, uPostId );
-        goto output;
-    }
-
-    // Check if user can add post
-    if( post_tree_check_perm( req, httpVarId->lpszValue, "remove", nPostDepth + 1 ) == false ||
-        strcmp( postRow->szColValue[1], req->g_userid ) != 0 )
-    {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Not allowed";
-        log_printf( req, LOG_NOTICE, "Post::Remove: %s", frameTemplate[1].szValue );
-        goto output;
-    }
-
-    // Did user pressed button?
-    struct NNCMS_VARIABLE *httpVarRemove = main_get_variable( req, "post_remove" );
-    if( httpVarRemove != 0 )
-    {
-        // Anti CSRF / XSRF vulnerabilities
-        if( user_xsrf( req ) == false )
-        {
-            frameTemplate[0].szValue = "Error";
-            frameTemplate[1].szValue = "Unequal keys";
-            goto output;
-        }
-
-        // Query Database
-        database_bind_int( req->stmtDeletePost, 1, uPostId );
-        database_steps( req->stmtDeletePost );
-        log_printf( req, LOG_ACTION, "Post::Remove: Post #%u removed", uPostId );
-
-        // Redirect back
-        redirect_to_referer( req );
-        database_freeRows( postRow );
+        main_vmessage( req, "no_data" );
         return;
     }
 
-    // Get user name and user nick
-    database_bind_text( req->stmtFindUserById, 1, postRow->szColValue[0] );
-    struct NNCMS_ROW *userRow = database_steps( req->stmtFindUserById );
-
-    // Fill template values
-    removeTemplate[2].szValue = httpVarId->lpszValue; // Post Id
-    removeTemplate[3].szValue = postRow->szColValue[1]; // User Id
-    if( userRow == 0 )
+    if( post_check_perm( req, NULL, httpVarId, true, false, false ) == false )
     {
-        removeTemplate[4].szValue = "guest"; // User Name
-        removeTemplate[5].szValue = "Anonymous"; // User Nick
-    }
-    else
-    {
-        removeTemplate[4].szValue = userRow->szColValue[1]; // User Name
-        removeTemplate[5].szValue = userRow->szColValue[2]; // User Nick
-    }
-
-    removeTemplate[6].szValue = postRow->szColValue[2]; // Timestamp
-    removeTemplate[8].szValue = postRow->szColValue[3]; // Parent Post Id
-    removeTemplate[9].szValue = postRow->szColValue[4]; // Subject
-    removeTemplate[10].szValue = postRow->szColValue[5]; // Body
-
-    // Get time string
-    char szTime[64];
-    time_t rawTime = atoi( postRow->szColValue[2] );
-    struct tm *timeInfo = localtime( &rawTime );
-    strftime( szTime, sizeof(szTime), szTimestampFormat, timeInfo );
-    removeTemplate[7].szValue = szTime; // Date
-
-    // Show edit form
-    template_iparse( req, TEMPLATE_POST_REMOVE, req->lpszBuffer, NNCMS_PAGE_SIZE_MAX, removeTemplate );
-
-    // Free rows after use
-    database_freeRows( userRow );
-
-cleanup:
-    database_freeRows( postRow );
-
-output:
-    // Make a cute frame
-    template_iparse( req, TEMPLATE_FRAME, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, frameTemplate );
-
-    // Send generated html to client
-    main_output( req, szHeader, req->lpszFrame, 0 );
-}
-
-// #############################################################################
-
-void post_topics( struct NNCMS_THREAD_INFO *req )
-{
-    // Page header
-    char *szHeader = "Topics";
-
-    // Specify values for template
-    struct NNCMS_TEMPLATE_TAGS frameTemplate[] =
-        {
-            { /* szName */ "header", /* szValue */ szHeader },
-            { /* szName */ "content",  /* szValue */ req->lpszTemp },
-            { /* szName */ "icon",  /* szValue */ "images/stock/net/stock_mail-open.png" },
-            { /* szName */ "homeURL",  /* szValue */ homeURL },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-
-    // Create smart buffers
-    struct NNCMS_BUFFER smartBuffer =
-        {
-            /* lpBuffer */ req->lpszBuffer,
-            /* nSize */ NNCMS_PAGE_SIZE_MAX,
-            /* nPos */ 0
-        };
-    *smartBuffer.lpBuffer = 0;
-
-    // Try to get post id
-    struct NNCMS_VARIABLE *httpVarId = main_get_variable( req, "post_id" );
-    if( httpVarId == 0 )
-    {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "No data";
-        log_printf( req, LOG_NOTICE, "Post::Topics: %s", frameTemplate[1].szValue );
-        goto output;
-    }
-
-    // Check session
-    user_check_session( req );
-
-    // Filter evil data
-    filter_truncate_string( httpVarId->lpszValue, NNCMS_PATH_LEN_MAX );
-    filter_table_replace( httpVarId->lpszValue, (unsigned int) strlen( httpVarId->lpszValue ), numericFilter );
-    unsigned int uPostId = atoi( httpVarId->lpszValue );
-
-    // Check if user can view posts
-    if( post_tree_check_perm( req, httpVarId->lpszValue, "view", POST_CHECK_PERM_DEPTH ) == false )
-    {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Not allowed";
-        log_printf( req, LOG_NOTICE, "Post::Topics: %s", frameTemplate[1].szValue );
-        goto output;
-    }
-
-    // Get posts
-    database_bind_int( req->stmtTopicPosts, 1, uPostId );
-    post_get_post( req, &smartBuffer, TEMPLATE_POST_TOPICS_ROW, req->stmtTopicPosts );
-
-    // Make a cute frame
-    database_bind_int( req->stmtFindPost, 1, uPostId );
-    post_make_frame( req, req->lpszTemp, &smartBuffer, TEMPLATE_POST_TOPICS_STRUCTURE, req->stmtFindPost );
-
-output:
-    // Make a cute frame
-    template_iparse( req, TEMPLATE_FRAME, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, frameTemplate );
-
-    // Send generated html to client
-    main_output( req, szHeader, req->lpszFrame, 0 );
-}
-
-// #############################################################################
-
-void post_news( struct NNCMS_THREAD_INFO *req )
-{
-    // Page header
-    char *szHeader = "News";
-
-    // Specify values for template
-    struct NNCMS_TEMPLATE_TAGS frameTemplate[] =
-        {
-            { /* szName */ "header", /* szValue */ szHeader },
-            { /* szName */ "content",  /* szValue */ req->lpszTemp },
-            { /* szName */ "icon",  /* szValue */ "images/stock/net/stock_mail-open.png" },
-            { /* szName */ "homeURL",  /* szValue */ homeURL },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-
-    // Create smart buffers
-    struct NNCMS_BUFFER smartBuffer =
-        {
-            /* lpBuffer */ req->lpszBuffer,
-            /* nSize */ NNCMS_PAGE_SIZE_MAX,
-            /* nPos */ 0
-        };
-    *smartBuffer.lpBuffer = 0;
-
-    // Try to get post id
-    struct NNCMS_VARIABLE *httpVarId = main_get_variable( req, "post_id" );
-    struct NNCMS_VARIABLE *httpVarTemplate = main_get_variable( req, "template" );
-    if( httpVarId == 0 )
-    {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "No data";
-        log_printf( req, LOG_NOTICE, "Post::News: %s", frameTemplate[1].szValue );
-        goto output;
-    }
-
-    // Check session
-    user_check_session( req );
-
-    // Filter evil data
-    filter_truncate_string( httpVarId->lpszValue, NNCMS_PATH_LEN_MAX );
-    filter_table_replace( httpVarId->lpszValue, strlen( httpVarId->lpszValue ), numericFilter );
-    unsigned int uPostId = atoi( httpVarId->lpszValue );
-
-    // Check if user can view posts
-    if( post_tree_check_perm( req, httpVarId->lpszValue, "view", POST_CHECK_PERM_DEPTH ) == false )
-    {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Not allowed";
-        log_printf( req, LOG_NOTICE, "Post::News: %s", frameTemplate[1].szValue );
-        goto output;
-    }
-
-    // Prepare output buffer
-    *req->lpszBuffer = 0;
-
-    // Get posts
-    database_bind_int( req->stmtTopicPosts, 1, uPostId );
-    post_get_post( req, &smartBuffer, TEMPLATE_POST_NEWS_ROW, req->stmtTopicPosts );
-
-    // Make a cute frame
-    database_bind_int( req->stmtFindPost, 1, uPostId );
-    post_make_frame( req, req->lpszTemp, &smartBuffer, TEMPLATE_POST_NEWS_STRUCTURE, req->stmtFindPost );
-
-output:
-    // Make a cute frame
-    template_iparse( req, TEMPLATE_FRAME, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, frameTemplate );
-
-    // Send generated html to client
-    main_output( req, szHeader, req->lpszFrame, 0 );
-}
-
-// #############################################################################
-
-void post_view( struct NNCMS_THREAD_INFO *req )
-{
-    // Page header
-    char *szHeader = "Post view";
-
-    // Specify values for template
-    struct NNCMS_TEMPLATE_TAGS frameTemplate[] =
-        {
-            { /* szName */ "header", /* szValue */ szHeader },
-            { /* szName */ "content",  /* szValue */ req->lpszBuffer },
-            { /* szName */ "icon",  /* szValue */ "images/stock/net/stock_mail-open.png" },
-            { /* szName */ "homeURL",  /* szValue */ homeURL },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-
-    // Create smart buffers
-    struct NNCMS_BUFFER smartBuffer =
-        {
-            /* lpBuffer */ req->lpszBuffer,
-            /* nSize */ NNCMS_PAGE_SIZE_MAX,
-            /* nPos */ 0
-        };
-    *smartBuffer.lpBuffer = 0;
-
-    // Try to get post id
-    struct NNCMS_VARIABLE *httpVarId = main_get_variable( req, "post_id" );
-    if( httpVarId == 0 )
-    {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "No data";
-        log_printf( req, LOG_NOTICE, "Post::View: %s", frameTemplate[1].szValue );
-        goto output;
-    }
-
-    // Check session
-    user_check_session( req );
-
-    // Filter evil data
-    filter_truncate_string( httpVarId->lpszValue, NNCMS_PATH_LEN_MAX );
-    filter_table_replace( httpVarId->lpszValue, strlen( httpVarId->lpszValue ), numericFilter );
-
-    // Check if user can view posts
-    if( post_tree_check_perm( req, httpVarId->lpszValue, "view", POST_CHECK_PERM_DEPTH ) == false )
-    {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Not allowed";
-        log_printf( req, LOG_NOTICE, "Post::View: %s", frameTemplate[1].szValue );
-        goto output;
-    }
-
-    // Prepare output buffer
-    *req->lpszBuffer = 0;
-
-    // Get posts
-    database_bind_int( req->stmtFindPost, 1, atoi( httpVarId->lpszValue ) );
-    post_get_post( req, &smartBuffer, TEMPLATE_POST_VIEW, req->stmtFindPost );
-
-output:
-    // Make a cute frame
-    template_iparse( req, TEMPLATE_FRAME, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, frameTemplate );
-
-    // Send generated html to client
-    main_output( req, szHeader, req->lpszFrame, 0 );
-}
-
-// #############################################################################
-
-void post_rss( struct NNCMS_THREAD_INFO *req )
-{
-    // Page header
-    char *szHeader = "Message board";
-
-    // Specify values for template
-    struct NNCMS_TEMPLATE_TAGS frameTemplate[] =
-        {
-            { /* szName */ "header", /* szValue */ szHeader },
-            { /* szName */ "content",  /* szValue */ req->lpszBuffer },
-            { /* szName */ "icon",  /* szValue */ "images/stock/net/stock_mail-open.png" },
-            { /* szName */ "homeURL",  /* szValue */ homeURL },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-
-    // Create smart buffers
-    struct NNCMS_BUFFER smartBuffer =
-        {
-            /* lpBuffer */ req->lpszBuffer,
-            /* nSize */ NNCMS_PAGE_SIZE_MAX,
-            /* nPos */ 0
-        };
-    *smartBuffer.lpBuffer = 0;
-
-    // Try to get post id
-    struct NNCMS_VARIABLE *httpVarId = main_get_variable( req, "post_id" );
-    if( httpVarId == 0 )
-    {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "No data";
-        log_printf( req, LOG_NOTICE, "Post::Rss: %s", frameTemplate[1].szValue );
-        goto output;
-    }
-
-    // Check session
-    user_check_session( req );
-
-    // Filter evil data
-    filter_truncate_string( httpVarId->lpszValue, NNCMS_PATH_LEN_MAX );
-    filter_table_replace( httpVarId->lpszValue, strlen( httpVarId->lpszValue ), numericFilter );
-    unsigned int uPostId = atoi( httpVarId->lpszValue );
-
-    // Check if user can view posts
-    if( post_tree_check_perm( req, httpVarId->lpszValue, "view", POST_CHECK_PERM_DEPTH ) == false )
-    {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Not allowed";
-        log_printf( req, LOG_NOTICE, "Post::Rss: %s", frameTemplate[1].szValue );
-        goto output;
-    }
-
-    // Prepare output buffer
-    *req->lpszBuffer = 0;
-
-    // Get topics
-    database_bind_int( req->stmtTopicPosts, 1, uPostId );
-    post_get_tree_post( req, &smartBuffer, TEMPLATE_POST_RSS_ENTRY, req->stmtTopicPosts );
-
-    // Make a cute frame
-    database_bind_int( req->stmtFindPost, 1, uPostId );
-    size_t nRetVal = post_make_frame( req, req->lpszFrame, &smartBuffer, TEMPLATE_POST_RSS_STRUCTURE, req->stmtFindPost );
-
-    // Send generated rss to client
-    main_send_headers( req, nRetVal, 0 );
-    FCGX_PutStr( req->lpszFrame, nRetVal, req->fcgi_request->out );
-
-    return;
-
-output:
-    // Make a cute frame
-    template_iparse( req, TEMPLATE_FRAME, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, frameTemplate );
-
-    // Send generated html to client
-    main_output( req, szHeader, req->lpszFrame, 0 );
-}
-
-// #############################################################################
-
-void post_board( struct NNCMS_THREAD_INFO *req )
-{
-    // Page header
-    char *szHeader = "Message board";
-
-    // Specify values for template
-    struct NNCMS_TEMPLATE_TAGS frameTemplate[] =
-        {
-            { /* szName */ "header", /* szValue */ szHeader },
-            { /* szName */ "content",  /* szValue */ req->lpszTemp },
-            { /* szName */ "icon",  /* szValue */ "images/stock/net/stock_mail-open.png" },
-            { /* szName */ "homeURL",  /* szValue */ homeURL },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-
-    // Create smart buffers
-    struct NNCMS_BUFFER smartBuffer =
-        {
-            /* lpBuffer */ req->lpszBuffer,
-            /* nSize */ NNCMS_PAGE_SIZE_MAX,
-            /* nPos */ 0
-        };
-    *smartBuffer.lpBuffer = 0;
-
-    // Try to get post id
-    struct NNCMS_VARIABLE *httpVarId = main_get_variable( req, "post_id" );
-    struct NNCMS_VARIABLE *httpVarTemplate = main_get_variable( req, "template" );
-    if( httpVarId == 0 )
-    {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "No data";
-        log_printf( req, LOG_NOTICE, "Post::Board: %s", frameTemplate[1].szValue );
-        goto output;
-    }
-
-    // Check session
-    user_check_session( req );
-
-    // Filter evil data
-    filter_truncate_string( httpVarId->lpszValue, NNCMS_PATH_LEN_MAX );
-    filter_table_replace( httpVarId->lpszValue, strlen( httpVarId->lpszValue ), numericFilter );
-    unsigned int uPostId = atoi( httpVarId->lpszValue );
-
-    // Check if user can view posts
-    if( post_tree_check_perm( req, httpVarId->lpszValue, "view", POST_CHECK_PERM_DEPTH ) == false )
-    {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Not allowed";
-        log_printf( req, LOG_NOTICE, "Post::Board: %s", frameTemplate[1].szValue );
-        goto output;
-    }
-
-    // Prepare output buffer
-    *req->lpszBuffer = 0;
-
-    // Get posts
-    database_bind_int( req->stmtTopicPosts, 1, uPostId );
-    post_get_tree_post( req, &smartBuffer, TEMPLATE_POST_BOARD_ROW, req->stmtTopicPosts );
-
-    // Make a cute frame
-    database_bind_int( req->stmtFindPost, 1, uPostId );
-    post_make_frame( req, req->lpszTemp, &smartBuffer, TEMPLATE_POST_BOARD_STRUCTURE, req->stmtFindPost );
-
-output:
-    // Make a cute frame
-    template_iparse( req, TEMPLATE_FRAME, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, frameTemplate );
-
-    // Send generated html to client
-    main_output( req, szHeader, req->lpszFrame, 0 );
-}
-
-// #############################################################################
-
-bool post_check_perm( struct NNCMS_THREAD_INFO *req, char *lpszPostId, char *lpszPerm )
-{
-    // Temp buffer
-    char szPermObject[NNCMS_PATH_LEN_MAX];
-
-    // Check session
-    user_check_session( req );
-
-    // Название в базе
-    snprintf( szPermObject, sizeof(szPermObject), "post_%s", lpszPostId );
-
-    // Проверка доступа
-    if( acl_check_perm( req, szPermObject, req->g_username, lpszPerm ) == true )
-    {
-        return true;
-    }
-
-    return false;
-}
-
-// #############################################################################
-
-bool post_tree_check_perm( struct NNCMS_THREAD_INFO *req, char *lpszPostId, char *lpszPerm, int nDepth )
-{
-    // Check session
-    user_check_session( req );
-
-    // Check if user can view posts
-    if( acl_check_perm( req, "post", req->g_username, lpszPerm ) == true )
-        return true;
-
-    // Give one more chance
-    char szCurId[32]; strlcpy( szCurId, lpszPostId, sizeof(szCurId) );
-    struct NNCMS_ROW *postRow = 0;
-    int i = 0;
-    do
-    {
-        // Get next parent row
-        if( postRow != 0 )
-        {
-            strlcpy( szCurId, postRow->szColValue[0], sizeof(szCurId) );
-            database_freeRows( postRow );
-        }
-
-        // Perm check
-        if( post_check_perm( req, szCurId, lpszPerm ) == true )
-            return true;
-
-        // Check for accident cyclic parent=>id=>parent=>id
-        i = 1 + i;
-        if( i >= nDepth )
-        {
-            //log_printf( req, LOG_DEBUG, "Post::CheckPerm: Too nested" );
-            return false;
-        }
-
-        // Query for parent post
-        database_bind_text( req->stmtGetParentPost, 1, szCurId );
-        postRow = database_steps( req->stmtGetParentPost );
-    } while( postRow != 0 );
-
-    return false;
-}
-
-// #############################################################################
-
-// Uses req->lpszFrame, add result to req->lpszBuffer
-void post_get_tree_post( struct NNCMS_THREAD_INFO *req, struct NNCMS_BUFFER *smartBuffer, enum TEMPLATE_INDEX tempNum, sqlite3_stmt *stmt )
-{
-    struct NNCMS_TEMPLATE_TAGS postTemplate[] =
-        {
-            { /* szName */ "homeURL", /* szValue */ homeURL },
-            { /* szName */ "post_id", /* szValue */ 0 },
-            { /* szName */ "user_id", /* szValue */ 0 },
-            { /* szName */ "user_name", /* szValue */ 0 },
-            { /* szName */ "user_nick", /* szValue */ 0 },
-            { /* szName */ "post_timestamp", /* szValue */ 0 },
-            { /* szName */ "post_parent", /* szValue */ 0 },
-            { /* szName */ "post_subject", /* szValue */ 0 },
-            { /* szName */ "post_body", /* szValue */ 0 },
-            { /* szName */ "post_actions", /* szValue */ 0 },
-            { /* szName */ "post_internet_timestamp", /* szValue */ 0 },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-
-    // Find posts
-    //va_list vArgs;
-    //va_start( vArgs, lpszQuery );
-    struct NNCMS_ROW *firstRow = database_steps( stmt ); //database_vquery( req, lpszQuery, vArgs );
-    //printf( TERM_BRIGHT TERM_FG_YELLOW "GetPostQuery:" TERM_RESET " %s\n", lpszQuery, vArgs ); // Debug
-    //va_end( vArgs );
-
-    // If not found then return zero
-    if( firstRow == 0 )
-    {
-        //smart_cat( smartBuffer, "n/a\n" );
+        main_vmessage( req, "not_allowed" );
         return;
     }
 
-    // Check session
-    user_check_session( req );
-
-    // Loop thru all rows
-    struct NNCMS_ROW *curRow = firstRow;
-    while( curRow != 0 )
+    //
+    // Find row by id
+    //
+    database_bind_text( req->stmt_find_post, 1, httpVarId );
+    struct NNCMS_POST_ROW *post_row = (struct NNCMS_POST_ROW *) database_steps( req, req->stmt_find_post );
+    if( post_row == NULL )
     {
-        // Get user name and user nick
-        database_bind_text( req->stmtFindUserById, 1, curRow->szColValue[1] );
-        struct NNCMS_ROW *userRow = database_steps( req->stmtFindUserById );
-
-        // Fill template values
-        postTemplate[1].szValue = curRow->szColValue[0]; // Post ID
-        postTemplate[2].szValue = curRow->szColValue[1]; // User ID
-        if( userRow == 0 )
-        {
-            postTemplate[3].szValue = "guest"; // User Name
-            postTemplate[4].szValue = "Anonymous"; // User Nick
-        }
-        else
-        {
-            postTemplate[3].szValue = userRow->szColValue[1]; // User Name
-            postTemplate[4].szValue = userRow->szColValue[2]; // User Nick
-        }
-        postTemplate[6].szValue = curRow->szColValue[3]; // Parent Post ID
-        postTemplate[7].szValue = curRow->szColValue[4]; // Post Subject
-        postTemplate[8].szValue = curRow->szColValue[5]; // Post Body
-        postTemplate[9].szValue = 0; //post_get_actions( req, curRow->szColValue[0] ); // Post Actions
-
-        // Get time string
-        char szTime[64];
-        time_t rawTime = atoi( curRow->szColValue[2] );
-        struct tm *timeInfo = localtime( &rawTime );
-        strftime( szTime, sizeof(szTime), szTimestampFormat, timeInfo );
-        postTemplate[5].szValue = szTime;
-
-        // Get internet time string
-        char szInternetTime[64];
-        timeInfo = gmtime( &rawTime );
-        strftime( szInternetTime, sizeof(szInternetTime), "%Y-%m-%dT%H:%M:%SZ", timeInfo );
-        postTemplate[10].szValue = szInternetTime;
-
-        // Load template
-        template_iparse( req, tempNum, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, postTemplate );
-        smart_cat( smartBuffer, req->lpszFrame );
-
-        // Free memory from useless info
-        if( postTemplate[9].szValue != 0 )
-        {
-            FREE( postTemplate[9].szValue );
-            postTemplate[9].szValue = 0;
-        }
-
-next_row:
-        // Free rows after parsing the template
-        database_freeRows( userRow );
-
-        // Look for child posts
-        //smart_cat( smartBuffer, "<ul>\n" );
-        database_bind_text( req->stmtTopicPosts, 1, curRow->szColValue[0] );
-        post_get_tree_post( req, smartBuffer, tempNum, req->stmtTopicPosts );
-        //smart_cat( smartBuffer, "</ul>\n" );
-
-        // Select next row
-        struct NNCMS_ROW *nextRow = curRow->next;
-
-        // Update current row
-        curRow = nextRow;
-    }
-
-    // Free memory from query result
-    database_freeRows( firstRow );
-
-    // Ok
-    return;
-}
-
-// #############################################################################
-
-// Uses req->lpszFrame, add result to req->lpszBuffer
-void post_get_post( struct NNCMS_THREAD_INFO *req, struct NNCMS_BUFFER *smartBuffer, enum TEMPLATE_INDEX tempNum, sqlite3_stmt *stmt )
-{
-    struct NNCMS_TEMPLATE_TAGS postTemplate[] =
-        {
-            /* 00 */ { /* szName */ "homeURL", /* szValue */ homeURL },
-            /* 01 */ { /* szName */ "post_id", /* szValue */ 0 },
-            /* 02 */ { /* szName */ "user_id", /* szValue */ 0 },
-            /* 03 */ { /* szName */ "user_name", /* szValue */ 0 },
-            /* 04 */ { /* szName */ "user_nick", /* szValue */ 0 },
-            /* 05 */ { /* szName */ "post_timestamp", /* szValue */ 0 },
-            /* 06 */ { /* szName */ "post_parent", /* szValue */ 0 },
-            /* 07 */ { /* szName */ "post_subject", /* szValue */ 0 },
-            /* 08 */ { /* szName */ "post_body", /* szValue */ 0 },
-            /* 09 */ { /* szName */ "post_actions", /* szValue */ 0 },
-            /* 10 */ { /* szName */ "post_child_count", /* szValue */ 0 },
-            /* 11 */ { /* szName */ "post_depth", /* szValue */ 0 },
-            /* 12 */ { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-
-    // Find posts
-    //va_list vArgs;
-    //va_start( vArgs, lpszQuery );
-    struct NNCMS_ROW *firstRow = database_steps( stmt ); //database_vquery( req, lpszQuery, vArgs );
-    //printf( TERM_BRIGHT TERM_FG_YELLOW "GetPostQuery:" TERM_RESET " %s\n", lpszQuery, vArgs ); // Debug
-    //va_end( vArgs );
-
-    // If not found then return zero
-    if( firstRow == 0 )
-    {
-        smart_cat( smartBuffer, "n/a\n" );
+        main_vmessage( req, "not_found" );
         return;
     }
+    garbage_add( req->loop_garbage, post_row, MEMORY_GARBAGE_DB_FREE );
 
-    // Makes string out of depth
-    char szDepth[20];
-    snprintf( szDepth, sizeof(szDepth), "%i", nPostDepth );
-    postTemplate[11].szValue = szDepth;
+    // Page title
+    struct NNCMS_VARIABLE vars[] =
+        {
+            { .name = "post_id", .value.string = post_row->id, .type = NNCMS_TYPE_STRING },
+            { .name = "post_subject", .value.string = post_row->subject, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE } // Terminating row
+        };
+    char *header_str = i18n_string_temp( req, "post_view_header", vars );
 
-    // Check session
-    user_check_session( req );
+    // Hierarchy
+    //
+    //  forum
+    //      group
+    //          subforum
+    //              topic
+    //                  msg
+    //                  msg
+    //          subforum
+    //              topic
+    //          subforum
+    //      group
+    //          subforum
+    //          subforum
+    //          subforum
+    
 
-    // Loop thru all rows
-    struct NNCMS_ROW *curRow = firstRow;
-    while( curRow != 0 )
+    enum NNCMS_POST_TYPE post_type = filter_str_to_int( post_row->type, post_type_list );
+    if( post_type == NNCMS_POST_FORUM )
     {
-        // Get user name and user nick
-        database_bind_text( req->stmtFindUserById, 1, curRow->szColValue[1] );
-        struct NNCMS_ROW *userRow = database_steps( req->stmtFindUserById );
-
-        // Fill template values
-        postTemplate[1].szValue = curRow->szColValue[0]; // Post ID
-        postTemplate[2].szValue = curRow->szColValue[1]; // User ID
-        if( userRow == 0 )
+        // Get list of groups associated to this forum
+        database_bind_text( req->stmt_find_post_parent_type, 1, httpVarId );
+        database_bind_text( req->stmt_find_post_parent_type, 2, "group" );
+        struct NNCMS_POST_ROW *group_row = (struct NNCMS_POST_ROW *) database_steps( req, req->stmt_find_post_parent_type );
+        if( group_row != NULL )
         {
-            postTemplate[3].szValue = "guest"; // User Name
-            postTemplate[4].szValue = "Anonymous"; // User Nick
-        }
-        else
-        {
-            postTemplate[3].szValue = userRow->szColValue[1]; // User Name
-            postTemplate[4].szValue = userRow->szColValue[2]; // User Nick
-        }
-        postTemplate[6].szValue = curRow->szColValue[3]; // Parent Post ID
-        postTemplate[7].szValue = curRow->szColValue[4]; // Post Subject
-        postTemplate[8].szValue = curRow->szColValue[5]; // Post Body
-        postTemplate[9].szValue = 0; //post_get_actions( req, curRow->szColValue[0] ); // Post Actions
-
-        // Cound child posts
-        database_bind_text( req->stmtCountChildPosts, 1, curRow->szColValue[0] );
-        struct NNCMS_ROW *countRow = database_steps( req->stmtCountChildPosts );
-        postTemplate[10].szValue = countRow->szColValue[0];
-
-        // Get time string
-        char szTime[64];
-        time_t rawTime = atoi( curRow->szColValue[2] );
-        struct tm *timeInfo = localtime( &rawTime );
-        strftime( szTime, sizeof(szTime), szTimestampFormat, timeInfo );
-        postTemplate[5].szValue = szTime;
-
-        // Load template
-        template_iparse( req, tempNum, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, postTemplate );
-        smart_cat( smartBuffer, req->lpszFrame );
-
-        // Free memory from useless info
-        if( postTemplate[9].szValue != 0 )
-        {
-            FREE( postTemplate[9].szValue );
-            postTemplate[9].szValue = 0;
+            garbage_add( req->loop_garbage, group_row, MEMORY_GARBAGE_DB_FREE );
         }
 
-next_row:
-        // Free rows after parsing the template
-        database_freeRows( userRow );
-        database_freeRows( countRow );
-
-        // Select next row
-        struct NNCMS_ROW *nextRow = curRow->next;
-
-        // Update current row
-        curRow = nextRow;
-    }
-
-    // Free memory from query result
-    database_freeRows( firstRow );
-
-    // Ok
-    return;
-}
-
-// #############################################################################
-
-// Loads a post and buffer into one template
-size_t post_make_frame( struct NNCMS_THREAD_INFO *req, char *lpDest, struct NNCMS_BUFFER *smartBuffer, enum TEMPLATE_INDEX tempNum, sqlite3_stmt *stmt )
-{
-    struct NNCMS_TEMPLATE_TAGS postTemplate[] =
+        // Header cells
+        struct NNCMS_TABLE_CELL header_cells[] =
         {
-            /* 00 */ { /* szName */ "homeURL", /* szValue */ homeURL },
-            /* 01 */ { /* szName */ "post_id", /* szValue */ 0 },
-            /* 02 */ { /* szName */ "user_id", /* szValue */ 0 },
-            /* 03 */ { /* szName */ "user_name", /* szValue */ 0 },
-            /* 04 */ { /* szName */ "user_nick", /* szValue */ 0 },
-            /* 05 */ { /* szName */ "post_timestamp", /* szValue */ 0 },
-            /* 06 */ { /* szName */ "post_parent", /* szValue */ 0 },
-            /* 07 */ { /* szName */ "post_subject", /* szValue */ 0 },
-            /* 08 */ { /* szName */ "post_body", /* szValue */ 0 },
-            /* 09 */ { /* szName */ "post_actions", /* szValue */ 0 },
-            /* 10 */ { /* szName */ "entries", /* szValue */ smartBuffer->lpBuffer },
-            /* 11 */ { /* szName */ "post_depth", /* szValue */ 0 },
-            /* 12 */ { /* szName */ 0, /* szValue */ 0 } // Terminating row
+            { .value = i18n_string_temp( req, "post_subject_forum_name", NULL ), .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .value = i18n_string_temp( req, "post_subject_count_name", NULL ), .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .value = i18n_string_temp( req, "post_msg_count_name", NULL ), .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .value = i18n_string_temp( req, "post_msg_last_name", NULL ), .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .type = NNCMS_TYPE_NONE }
         };
 
-    // Find post
-    struct NNCMS_ROW *postRow = database_steps( stmt );
-
-    // If not found then return zero
-    if( postRow == 0 )
-    {
-        strcpy( lpDest, "n/a\n" );
-        return 4;
-    }
-
-    // Makes string out of depth
-    char szDepth[20];
-    snprintf( szDepth, sizeof(szDepth), "%i", nPostDepth );
-    postTemplate[11].szValue = szDepth;
-
-    // Check session
-    user_check_session( req );
-
-    // Get user name and user nick
-    database_bind_text( req->stmtFindUserById, 1, postRow->szColValue[1] );
-    struct NNCMS_ROW *userRow = database_steps( req->stmtFindUserById );
-
-    // Fill template values
-    postTemplate[1].szValue = postRow->szColValue[0]; // Post ID
-    postTemplate[2].szValue = postRow->szColValue[1]; // User ID
-    if( userRow == 0 )
-    {
-        postTemplate[3].szValue = "guest"; // User Name
-        postTemplate[4].szValue = "Anonymous"; // User Nick
-    }
-    else
-    {
-        postTemplate[3].szValue = userRow->szColValue[1]; // User Name
-        postTemplate[4].szValue = userRow->szColValue[2]; // User Nick
-    }
-    postTemplate[6].szValue = postRow->szColValue[3]; // Parent Post ID
-    postTemplate[7].szValue = postRow->szColValue[4]; // Post Subject
-    postTemplate[8].szValue = postRow->szColValue[5]; // Post Body
-
-    // Get time string
-    char szTime[64];
-    time_t rawTime = atoi( postRow->szColValue[2] );
-    struct tm *timeInfo = localtime( &rawTime );
-    strftime( szTime, sizeof(szTime), szTimestampFormat, timeInfo );
-    postTemplate[5].szValue = szTime;
-
-    // Load template
-    size_t nRetVal = template_iparse( req, tempNum, lpDest, NNCMS_PAGE_SIZE_MAX, postTemplate );
-
-    // Free rows after parsing the template
-    database_freeRows( userRow );
-
-    // Free memory from query result
-    database_freeRows( postRow );
-
-    // Ok
-    return nRetVal;
-}
-
-// #############################################################################
-
-void post_root( struct NNCMS_THREAD_INFO *req )
-{
-    // Page header
-    char *szHeader = "All posts";
-
-    // Specify values for template
-    struct NNCMS_TEMPLATE_TAGS frameTemplate[] =
+        // Fetch table data
+        GArray *gcells = g_array_new( TRUE, FALSE, sizeof(struct NNCMS_TABLE_CELL) );
+        garbage_add( req->loop_garbage, gcells, MEMORY_GARBAGE_GARRAY_FREE );
+        for( unsigned int i = 0; group_row != NULL && group_row[i].id != NULL; i = i + 1 )
         {
-            { /* szName */ "header", /* szValue */ szHeader },
-            { /* szName */ "content",  /* szValue */ req->lpszBuffer },
-            { /* szName */ "icon",  /* szValue */ "images/stock/net/stock_mail-open-multiple.png" },
-            { /* szName */ "homeURL",  /* szValue */ homeURL },
-            { /* szName */ 0, /* szValue */ 0 } // Terminating row
-        };
-
-    // Create smart buffers
-    struct NNCMS_BUFFER smartBuffer =
-        {
-            /* lpBuffer */ req->lpszBuffer,
-            /* nSize */ NNCMS_PAGE_SIZE_MAX,
-            /* nPos */ 0
-        };
-    *smartBuffer.lpBuffer = 0;
-
-    // Check session
-    user_check_session( req );
-
-    // Check if user can view posts
-    if( acl_check_perm( req, "post", req->g_username, "view" ) == false )
-    {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Not allowed";
-        log_printf( req, LOG_NOTICE, "Post::Root: %s", frameTemplate[1].szValue );
-        goto output;
-    }
-
-    // Get list of all root posts
-    struct NNCMS_ROW *firstRow = database_steps( req->stmtRootPosts );
-
-    // If not found then return zero
-    if( firstRow == 0 )
-    {
-        frameTemplate[0].szValue = "Error";
-        frameTemplate[1].szValue = "Posts not found";
-        log_printf( req, LOG_ERROR, "Post::Root: %s", frameTemplate[1].szValue );
-        goto output;
-    }
-
-    // Loop thru all rows
-    struct NNCMS_ROW *curRow = firstRow;
-    unsigned int *uRootPosts = MALLOC( sizeof(unsigned int) * 1024 );
-    unsigned int nRootPostsCount = 0;
-    memset( uRootPosts, 0, sizeof(unsigned int) * 1024 );
-    while( curRow != 0 )
-    {
-        // Save unique parent posts
-        unsigned int uPostId = atoi( curRow->szColValue[0] );
-
-        // Check if post id is in list
-        for( unsigned int i = 0; i < nRootPostsCount; i++ )
-        {
-            if( uRootPosts[i] == uPostId )
+            if( post_check_perm( req, NULL, group_row[i].id, true, false, false ) == false )
             {
-                goto next_row;
+                continue;
+            }
+            
+            // Get list of subforums associated to group
+            database_bind_text( req->stmt_find_post_parent_type, 1, group_row[i].id );
+            database_bind_text( req->stmt_find_post_parent_type, 2, "subforum" );
+            struct NNCMS_POST_ROW *subforum_row = (struct NNCMS_POST_ROW *) database_steps( req, req->stmt_find_post_parent_type );
+            if( subforum_row != NULL )
+            {
+                garbage_add( req->loop_garbage, subforum_row, MEMORY_GARBAGE_DB_FREE );
+            }
+
+            //
+            // Data
+            //
+            struct NNCMS_TABLE_CELL cells[] =
+            {
+                { .value.string = group_row[i].subject, .type = NNCMS_TYPE_STRING, .options = NULL },
+                { .value.string = NULL, .type = NNCMS_TYPE_STRING, .options = NULL },
+                { .value.string = NULL, .type = NNCMS_TYPE_STRING, .options = NULL },
+                { .value.string = NULL, .type = NNCMS_TYPE_STRING, .options = NULL },
+                { .type = NNCMS_TYPE_NONE }
+            };
+            g_array_append_vals( gcells, &cells, sizeof(cells) / sizeof(struct NNCMS_TABLE_CELL) - 1 );
+            
+            // Add subforums
+            for( unsigned int j = 0; subforum_row != NULL && subforum_row[j].id != NULL; j = j + 1 )
+            {
+                if( post_check_perm( req, NULL, subforum_row[j].id, true, false, false ) == false )
+                {
+                    continue;
+                }
+                
+                struct NNCMS_VARIABLE vars[] =
+                {
+                    { .name = "post_id", .value.string = subforum_row[j].id, .type = NNCMS_TYPE_STRING },
+                    { .type = NNCMS_TYPE_NONE }
+                };
+                char *list = main_temp_link( req, "post_list", subforum_row[j].subject, vars );
+
+                // Number of subjects
+                database_bind_text( req->stmt_count_child_posts, 1, subforum_row[j].id );
+                struct NNCMS_ROW *subject_row_count = database_steps( req, req->stmt_count_child_posts );
+                int subject_row_count_i = atoi( subject_row_count->value[0] );
+                database_free_rows( subject_row_count );
+
+                struct NNCMS_TABLE_CELL cells[] =
+                {
+                    { .value.string = list, .type = NNCMS_TYPE_STRING, .options = NULL },
+                    { .value.integer = subject_row_count_i, .type = NNCMS_TYPE_INTEGER, .options = NULL },
+                    { .value.string = NULL, .type = NNCMS_TYPE_STRING, .options = NULL },
+                    { .value.string = NULL, .type = NNCMS_TYPE_STRING, .options = NULL },
+                    { .type = NNCMS_TYPE_NONE }
+                };
+                g_array_append_vals( gcells, &cells, sizeof(cells) / sizeof(struct NNCMS_TABLE_CELL) - 1 );
             }
         }
 
-        // If we are here, then post id is not in list
-        // Add it
-        uRootPosts[nRootPostsCount] = uPostId;
-        nRootPostsCount++;
+        // Create a table
+        struct NNCMS_TABLE table =
+        {
+            .caption = NULL,
+            .header_html = NULL, .footer_html = NULL,
+            .options = NULL,
+            .cellpadding = NULL, .cellspacing = NULL,
+            .border = NULL, .bgcolor = NULL,
+            .width = NULL, .height = NULL,
+            .row_count = -1,
+            .column_count = sizeof(header_cells) / sizeof(struct NNCMS_TABLE_CELL) - 1,
+            .pager_quantity = 0, .pages_displayed = 0,
+            .headerz = header_cells,
+            .cells = (struct NNCMS_TABLE_CELL *) gcells->data
+        };
 
-        // Select next row
-        struct NNCMS_ROW *nextRow;
-next_row:
-        nextRow = curRow->next;
+        // Generate links
+        char *links = post_links( req, post_row->id, NULL );
+        
+        // Html output
+        char *html_table = table_html( req, &table );
 
-        // Update current row
-        curRow = nextRow;
+        // Specify values for template
+        struct NNCMS_VARIABLE frame_template[] =
+        {
+            { .name = "header", .value.string = header_str, .type = NNCMS_TYPE_STRING },
+            { .name = "content", .value.string = html_table, .type = NNCMS_TYPE_STRING },
+            { .name = "icon", .value.string = "images/stock/net/stock_mail-open-multiple.png", .type = NNCMS_TYPE_STRING },
+            { .name = "homeURL", .value.string = homeURL, .type = NNCMS_TYPE_STRING },
+            { .name = "links", .value.string = links, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE } // Terminating row
+        };
+
+        // Make a cute frame
+        template_hparse( req, "frame.html", req->frame, frame_template );
+
+        // Send generated html to client
+        main_output( req, header_str, req->frame->str, 0 );
     }
-
-    // Print post headers for every unique parent post id
-    for( unsigned int i = 0; i < nRootPostsCount; i++ )
+    else if( post_type == NNCMS_POST_GROUP )
     {
-        //Debug
-        //printf( TERM_FG_CYAN "Post ID:" TERM_RESET " %u\n", uRootPosts[i] );
+        // Header cells
+        struct NNCMS_TABLE_CELL header_cells[] =
+        {
+            { .value = i18n_string_temp( req, "post_subject_forum_name", NULL ), .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .value = i18n_string_temp( req, "post_subject_count_name", NULL ), .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .value = i18n_string_temp( req, "post_msg_count_name", NULL ), .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .value = i18n_string_temp( req, "post_msg_last_name", NULL ), .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .type = NNCMS_TYPE_NONE }
+        };
 
-        database_bind_int( req->stmtFindPost, 1, uRootPosts[i] );
-        post_get_post( req, &smartBuffer, TEMPLATE_POST_ROOT, req->stmtFindPost );
-        database_bind_int( req->stmtTopicPosts, 1, uRootPosts[i] );
-        post_get_post( req, &smartBuffer, TEMPLATE_POST_PARENT, req->stmtTopicPosts );
-        //smart_cat( &smartBuffer, "<hr>\n" );
+        // Fetch table data
+        GArray *gcells = g_array_new( TRUE, FALSE, sizeof(struct NNCMS_TABLE_CELL) );
+        garbage_add( req->loop_garbage, gcells, MEMORY_GARBAGE_GARRAY_FREE );
+
+        // Get list of subforums associated to group
+        database_bind_text( req->stmt_find_post_parent_type, 1, post_row->id );
+        database_bind_text( req->stmt_find_post_parent_type, 2, "subforum" );
+        struct NNCMS_POST_ROW *subforum_row = (struct NNCMS_POST_ROW *) database_steps( req, req->stmt_find_post_parent_type );
+        if( subforum_row != NULL )
+        {
+            garbage_add( req->loop_garbage, subforum_row, MEMORY_GARBAGE_DB_FREE );
+        }
+
+        //
+        // Data
+        //
+        struct NNCMS_TABLE_CELL cells[] =
+        {
+            { .value.string = post_row->subject, .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .value.string = NULL, .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .value.string = NULL, .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .value.string = NULL, .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .type = NNCMS_TYPE_NONE }
+        };
+        g_array_append_vals( gcells, &cells, sizeof(cells) / sizeof(struct NNCMS_TABLE_CELL) - 1 );
+        
+        // Add subforums
+        for( unsigned int j = 0; subforum_row != NULL && subforum_row[j].id != NULL; j = j + 1 )
+        {
+            if( post_check_perm( req, NULL, subforum_row[j].id, true, false, false ) == false )
+            {
+                continue;
+            }
+            
+            struct NNCMS_VARIABLE vars[] =
+            {
+                { .name = "post_id", .value.string = subforum_row[j].id, .type = NNCMS_TYPE_STRING },
+                { .type = NNCMS_TYPE_NONE }
+            };
+            char *list = main_temp_link( req, "post_list", subforum_row[j].subject, vars );
+
+            // Number of subjects
+            database_bind_text( req->stmt_count_child_posts, 1, subforum_row[j].id );
+            struct NNCMS_ROW *subject_row_count = database_steps( req, req->stmt_count_child_posts );
+            int subject_row_count_i = atoi( subject_row_count->value[0] );
+            database_free_rows( subject_row_count );
+
+            struct NNCMS_TABLE_CELL cells[] =
+            {
+                { .value.string = list, .type = NNCMS_TYPE_STRING, .options = NULL },
+                { .value.integer = subject_row_count_i, .type = NNCMS_TYPE_INTEGER, .options = NULL },
+                { .value.string = NULL, .type = NNCMS_TYPE_STRING, .options = NULL },
+                { .value.string = NULL, .type = NNCMS_TYPE_STRING, .options = NULL },
+                { .type = NNCMS_TYPE_NONE }
+            };
+            g_array_append_vals( gcells, &cells, sizeof(cells) / sizeof(struct NNCMS_TABLE_CELL) - 1 );
+        }
+
+        // Create a table
+        struct NNCMS_TABLE table =
+        {
+            .caption = NULL,
+            .header_html = NULL, .footer_html = NULL,
+            .options = NULL,
+            .cellpadding = NULL, .cellspacing = NULL,
+            .border = NULL, .bgcolor = NULL,
+            .width = NULL, .height = NULL,
+            .row_count = -1,
+            .column_count = sizeof(header_cells) / sizeof(struct NNCMS_TABLE_CELL) - 1,
+            .pager_quantity = 0, .pages_displayed = 0,
+            .headerz = header_cells,
+            .cells = (struct NNCMS_TABLE_CELL *) gcells->data
+        };
+
+        // Generate links
+        char *links = post_links( req, post_row->id, post_row->parent_post_id );
+        
+        // Html output
+        char *html_table = table_html( req, &table );
+
+        // Specify values for template
+        struct NNCMS_VARIABLE frame_template[] =
+        {
+            { .name = "header", .value.string = header_str, .type = NNCMS_TYPE_STRING },
+            { .name = "content", .value.string = html_table, .type = NNCMS_TYPE_STRING },
+            { .name = "icon", .value.string = "images/stock/net/stock_mail-open-multiple.png", .type = NNCMS_TYPE_STRING },
+            { .name = "homeURL", .value.string = homeURL, .type = NNCMS_TYPE_STRING },
+            { .name = "links", .value.string = links, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE } // Terminating row
+        };
+
+        // Make a cute frame
+        template_hparse( req, "frame.html", req->frame, frame_template );
+
+        // Send generated html to client
+        main_output( req, header_str, req->frame->str, 0 );
+    }
+    else if( post_type == NNCMS_POST_SUBFORUM )
+    {
+        //
+        // Find child rows by id
+        //
+        database_bind_text( req->stmt_count_child_posts, 1, httpVarId );
+        struct NNCMS_ROW *row_count = database_steps( req, req->stmt_count_child_posts );
+        garbage_add( req->loop_garbage, row_count, MEMORY_GARBAGE_DB_FREE );
+        char *http_start = main_variable_get( req, req->get_tree, "start" );
+        database_bind_text( req->stmt_topic_posts, 1, httpVarId );
+        database_bind_int( req->stmt_topic_posts, 2, default_pager_quantity );
+        database_bind_text( req->stmt_topic_posts, 3, (http_start != NULL ? http_start : "0") );
+        struct NNCMS_POST_ROW *child_post_row = (struct NNCMS_POST_ROW *) database_steps( req, req->stmt_topic_posts );
+        if( child_post_row != NULL )
+        {
+            garbage_add( req->loop_garbage, child_post_row, MEMORY_GARBAGE_DB_FREE );
+        }
+
+        // Header cells
+        struct NNCMS_TABLE_CELL header_cells[] =
+        {
+            { .value = i18n_string_temp( req, "post_subject_topic_name", NULL ), .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .value = i18n_string_temp( req, "post_responds_name", NULL ), .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .value = i18n_string_temp( req, "post_created_name", NULL ), .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .value = "", .type = NNCMS_TYPE_STRING, .options = NULL },
+            { .type = NNCMS_TYPE_NONE }
+        };
+
+        // Fetch table data
+        GArray *gcells = g_array_new( TRUE, FALSE, sizeof(struct NNCMS_TABLE_CELL) );
+        garbage_add( req->loop_garbage, gcells, MEMORY_GARBAGE_GARRAY_FREE );
+        for( unsigned int i = 0; child_post_row != NULL && child_post_row[i].id; i = i + 1 )
+        {
+            if( post_check_perm( req, NULL, child_post_row[i].id, true, false, false ) == false )
+            {
+                continue;
+            }
+            
+            // Actions
+            char *link;
+            struct NNCMS_VARIABLE vars[] =
+            {
+                { .name = "post_id", .value.string = child_post_row[i].id, .type = NNCMS_TYPE_STRING },
+                { .type = NNCMS_TYPE_NONE }
+            };
+
+            char *view = main_temp_link( req, "post_list", child_post_row[i].subject, vars );
+
+            //
+            // Process n-child rows 
+            //
+            database_bind_text( req->stmt_count_child_posts, 1, child_post_row[i].id );
+            struct NNCMS_ROW *child_row_count = database_steps( req, req->stmt_count_child_posts );
+            int child_row_count_i = atoi( child_row_count->value[0] );
+            database_free_rows( child_row_count );
+
+            //
+            // Data
+            //
+            struct NNCMS_TABLE_CELL cells[] =
+            {
+                { .value.string = view, .type = NNCMS_TYPE_STRING, .options = NULL },
+                { .value.integer = child_row_count_i, .type = NNCMS_TYPE_INTEGER, .options = NULL },
+                { .value.string = child_post_row[i].timestamp, .type = NNCMS_TYPE_STR_TIMESTAMP, .options = NULL },
+                { .value.string = child_post_row[i].user_id, .type = TEMPLATE_TYPE_USER, .options = NULL },
+                { .type = NNCMS_TYPE_NONE }
+            };
+
+            g_array_append_vals( gcells, &cells, sizeof(cells) / sizeof(struct NNCMS_TABLE_CELL) - 1 );
+        }
+
+        // Create a table
+        struct NNCMS_TABLE table =
+        {
+            .caption = NULL,
+            .header_html = NULL, .footer_html = NULL,
+            .options = NULL,
+            .cellpadding = NULL, .cellspacing = NULL,
+            .border = NULL, .bgcolor = NULL,
+            .width = NULL, .height = NULL,
+            .row_count = atoi( row_count->value[0] ),
+            .column_count = sizeof(header_cells) / sizeof(struct NNCMS_TABLE_CELL) - 1,
+            .pager_quantity = 0, .pages_displayed = 0,
+            .headerz = header_cells,
+            .cells = (struct NNCMS_TABLE_CELL *) gcells->data
+        };
+
+        // Generate links
+        char *links = post_links( req, post_row->id, post_row->parent_post_id );
+        
+        // Html output
+        char *html_table = table_html( req, &table );
+
+        // Specify values for template
+        struct NNCMS_VARIABLE frame_template[] =
+        {
+            { .name = "header", .value.string = header_str, .type = NNCMS_TYPE_STRING },
+            { .name = "content", .value.string = html_table, .type = NNCMS_TYPE_STRING },
+            { .name = "icon", .value.string = "images/stock/net/stock_mail-open-multiple.png", .type = NNCMS_TYPE_STRING },
+            { .name = "homeURL", .value.string = homeURL, .type = NNCMS_TYPE_STRING },
+            { .name = "links", .value.string = links, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE } // Terminating row
+        };
+
+        // Make a cute frame
+        template_hparse( req, "frame.html", req->frame, frame_template );
+
+        // Send generated html to client
+        main_output( req, header_str, req->frame->str, 0 );    
+    }
+    else // TOPIC, MESSAGE
+    {
+        // Generate links
+        char *root_links = post_links( req, post_row->id, post_row->parent_post_id );
+
+        database_bind_text( req->stmt_find_user_by_id, 1, post_row->user_id );
+        struct NNCMS_USER_ROW *user_row = (struct NNCMS_USER_ROW *) database_steps( req, req->stmt_find_user_by_id );
+
+        GString *html = g_string_sized_new( 100 );
+        garbage_add( req->loop_garbage, html, MEMORY_GARBAGE_GSTRING_FREE );
+        struct NNCMS_VARIABLE post_template[] =
+        {
+            { .name = "header", .value.string = post_row->subject, .type = NNCMS_TYPE_STRING },
+            { .name = "body", .value.string = post_row->body, .type = NNCMS_TYPE_STRING },
+            { .name = "user", .value.string = post_row->user_id, .type = TEMPLATE_TYPE_USER },
+            { .name = "user_id", .value.string = user_row->id, .type = NNCMS_TYPE_STRING },
+            { .name = "user_name", .value.string = user_row->name, .type = NNCMS_TYPE_STRING },
+            { .name = "user_nick", .value.string = user_row->nick, .type = NNCMS_TYPE_STRING },
+            { .name = "user_avatar", .value.string = user_row->avatar, .type = NNCMS_TYPE_STRING },
+            { .name = "timestamp", .value.string = post_row->timestamp, .type = NNCMS_TYPE_STR_TIMESTAMP },
+            { .name = "links", .value.string = root_links, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE } // Terminating row
+        };
+        template_hparse( req, "post.html", html, post_template );
+
+        database_free_rows( (struct NNCMS_ROW *) user_row );
+
+        //
+        // Find child rows by id
+        //
+        //database_bind_text( req->stmt_count_child_posts, 1, httpVarId );
+        //struct NNCMS_ROW *row_count = database_steps( req, req->stmt_count_child_posts );
+        //garbage_add( req->loop_garbage, row_count, MEMORY_GARBAGE_DB_FREE );
+        //char *http_start = main_variable_get( req, req->get_tree, "start" );
+        //database_bind_text( req->stmt_topic_posts, 1, httpVarId );
+        //database_bind_int( req->stmt_topic_posts, 2, default_pager_quantity );
+        //database_bind_text( req->stmt_topic_posts, 3, (http_start != NULL ? http_start : "0") );
+
+        // Recursive stack
+        struct POST_STACK
+        {
+            int depth;
+            struct NNCMS_POST_ROW *post_row;
+        };
+        GArray *gstack = g_array_new( true, false, sizeof(struct POST_STACK)  );
+        g_array_append_vals( gstack, & (struct POST_STACK) { .depth = 0, .post_row = post_row }, 1 );
+
+        // Stack will increase as new posts found
+        for( unsigned int i = 0; i < gstack->len; i = i + 1 )
+        {
+            struct POST_STACK *current_stack = & ((struct POST_STACK *) (gstack->data)) [i];
+            int depth = current_stack->depth;
+            
+            database_bind_text( req->stmt_topic_posts, 1, current_stack->post_row->id );
+            database_bind_int( req->stmt_topic_posts, 2, -1 );
+            database_bind_int( req->stmt_topic_posts, 3, 0 );
+            struct NNCMS_POST_ROW *child_post_row = (struct NNCMS_POST_ROW *) database_steps( req, req->stmt_topic_posts );
+            if( child_post_row == NULL )
+            {
+                continue;
+            }
+            garbage_add( req->loop_garbage, child_post_row, MEMORY_GARBAGE_DB_FREE );
+
+            for( unsigned int j = 0; child_post_row[j].id; j = j + 1 )
+            {
+                struct POST_STACK stack =
+                {
+                    .depth = depth + 1,
+                    .post_row = &child_post_row[j]
+                };
+                g_array_insert_vals( gstack, i + 1, &stack, 1 );
+            }
+        }
+
+        // Fetch table data
+        for( unsigned int i = 1; i < gstack->len; i = i + 1 )
+        {
+            struct POST_STACK *current_stack = & ((struct POST_STACK *) (gstack->data)) [i];
+            
+            if( post_check_perm( req, NULL, current_stack->post_row->id, true, false, false ) == false )
+            {
+                continue;
+            }
+            
+            // Generate links
+            char *links = post_links( req, current_stack->post_row->id, NULL );
+            
+            database_bind_text( req->stmt_find_user_by_id, 1, current_stack->post_row->user_id );
+            struct NNCMS_USER_ROW *user_row = (struct NNCMS_USER_ROW *) database_steps( req, req->stmt_find_user_by_id );
+            
+            struct NNCMS_VARIABLE post_template[] =
+            {
+                { .name = "header", .value.string = current_stack->post_row->subject, .type = NNCMS_TYPE_STRING },
+                { .name = "depth", .value.integer = current_stack->depth, .type = NNCMS_TYPE_INTEGER },
+                { .name = "body", .value.string = current_stack->post_row->body, .type = NNCMS_TYPE_STRING },
+                { .name = "user", .value.string = user_row->id, .type = TEMPLATE_TYPE_USER },
+                { .name = "user_id", .value.string = user_row->id, .type = NNCMS_TYPE_STRING },
+                { .name = "user_name", .value.string = user_row->name, .type = NNCMS_TYPE_STRING },
+                { .name = "user_nick", .value.string = user_row->nick, .type = NNCMS_TYPE_STRING },
+                { .name = "user_avatar", .value.string = user_row->avatar, .type = NNCMS_TYPE_STRING },
+                { .name = "timestamp", .value.string = current_stack->post_row->timestamp, .type = NNCMS_TYPE_STR_TIMESTAMP },
+                { .name = "links", .value.string = links, .type = NNCMS_TYPE_STRING },
+                { .type = NNCMS_TYPE_NONE } // Terminating row
+            };
+
+            template_hparse( req, "post.html", html, post_template );
+            
+            database_free_rows( (struct NNCMS_ROW *) user_row );
+        }
+        
+        g_array_free( gstack, true );
+
+        //
+        // Add new message form
+        //
+        char *html_add_form = NULL;
+        if( post_check_perm( req, NULL, post_row->id, true, false, true ) == true )
+        {
+            struct NNCMS_POST_ADD_FIELDS *fields = memdup_temp( req, &post_add_fields, sizeof(post_add_fields) );
+            fields->post_id.viewable = false;
+            fields->post_user_id.value = req->user_id;
+            fields->post_parent_post_id.value = post_row->id;
+            fields->post_subject.value = NULL;
+            fields->referer.value = FCGX_GetParam( "REQUEST_URI", req->fcgi_request->envp );
+            fields->fkey.value = req->session_id;
+
+            if( acl_check_perm( req, "post", NULL, "chown" ) == false )
+            {
+                fields->post_user_id.editable = false;
+                fields->post_group_id.editable = false;
+                fields->post_group_id.viewable = false;
+            }
+            
+            if( acl_check_perm( req, "post", NULL, "chmod" ) == false )
+            {
+                fields->post_mode.editable = false;
+                fields->post_mode.viewable = false;
+            }
+
+            if( is_devel == false )
+            {
+                fields->post_parent_post_id.type = NNCMS_FIELD_HIDDEN;
+                fields->post_type.editable = false;
+                fields->post_type.viewable = false;
+            }
+
+            struct NNCMS_VARIABLE vars[] =
+                {
+                    { .name = "post_id", .value.string = post_row->id, .type = NNCMS_TYPE_STRING },
+                    { .type = NNCMS_TYPE_NONE } // Terminating row
+                };
+            char *action = main_temp_link( req, "post_add", NULL, vars );
+
+            // Form
+            struct NNCMS_FORM form =
+            {
+                .name = "post_add", .action = action, .method = "POST",
+                .title = NULL, .help = NULL,
+                .header_html = NULL, .footer_html = NULL,
+                .fields = (struct NNCMS_FIELD *) fields
+            };
+            html_add_form = form_html( req, &form );
+        }
+
+        g_string_append( html, html_add_form );
+
+        // Generate links
+        char *links = post_links( req, post_row->id, post_row->parent_post_id );
+
+        char *pager = "";//pager_html( req, atoi( row_count->value[0] ) );
+
+        // Specify values for template
+        struct NNCMS_VARIABLE frame_template[] =
+        {
+            { .name = "header", .value.string = header_str, .type = NNCMS_TYPE_STRING },
+            { .name = "content", .value.string = html->str, .type = NNCMS_TYPE_STRING },
+            { .name = "icon", .value.string = "images/stock/net/stock_mail-open-multiple.png", .type = NNCMS_TYPE_STRING },
+            { .name = "homeURL", .value.string = homeURL, .type = NNCMS_TYPE_STRING },
+            { .name = "pager", .value.string = pager, .type = NNCMS_TYPE_STRING },
+            { .name = "links", .value.string = links, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE } // Terminating row
+        };
+
+        // Make a cute frame
+        template_hparse( req, "frame.html", req->frame, frame_template );
+
+        // Send generated html to client
+        main_output( req, header_str, req->frame->str, 0 );    
+    }
+}
+
+// #############################################################################
+
+struct NNCMS_FORM *post_view_form( struct NNCMS_THREAD_INFO *req, struct NNCMS_POST_ROW *post_row )
+{
+    bool is_devel = acl_check_perm( req, "post", NULL, "devel" );
+    
+    // Fields
+    struct NNCMS_POST_VIEW_FIELDS *fields = memdup( &post_view_fields, sizeof(post_view_fields) );
+    fields->post_id.value = post_row->id;
+    fields->post_user_id.value = post_row->user_id;
+    fields->post_group_id.value = post_row->group_id;
+    fields->post_parent_post_id.value = post_row->parent_post_id;
+    fields->post_timestamp.value = post_row->timestamp;
+    fields->post_subject.value = post_row->subject;
+    fields->post_body.value = post_row->body;
+    fields->post_type.value = post_row->type;
+    fields->post_mode.value = post_row->mode;
+
+    if( acl_check_perm( req, "post", NULL, "chown" ) == false )
+    {
+        fields->post_user_id.editable = false;
+        fields->post_group_id.editable = false;
+        fields->post_group_id.viewable = false;
+    }
+    
+    if( acl_check_perm( req, "post", NULL, "chmod" ) == false )
+    {
+        fields->post_mode.editable = false;
+        fields->post_mode.viewable = false;
     }
 
-    // Free memory from query result and other
-    database_freeRows( firstRow );
-    FREE( uRootPosts );
+    if( is_devel == false )
+    {
+        fields->post_id.viewable = false;
+        fields->post_parent_post_id.type = NNCMS_FIELD_HIDDEN;
+        fields->post_type.editable = false;
+        fields->post_type.viewable = false;
+    }
 
-    // Check if user can add post
-    post_add_form( req, &smartBuffer, "0" );
+    // Form
+    struct NNCMS_FORM *form = MALLOC( sizeof(struct NNCMS_FORM) * 1 );
+    *form =
+    (struct NNCMS_FORM) {
+        .name = "post_view", .action = NULL, .method = "POST",
+        .title = NULL, .help = NULL,
+        .header_html = NULL, .footer_html = NULL,
+        .fields = (struct NNCMS_FIELD *) fields
+    };
+    
+    garbage_add( req->loop_garbage, fields, MEMORY_GARBAGE_FREE );
+    garbage_add( req->loop_garbage, form, MEMORY_GARBAGE_FREE );
+    
+    return form;
+}
 
-output:
+void post_view( struct NNCMS_THREAD_INFO *req )
+{
+    // Check user permission to view ACLs
+    if( acl_check_perm( req, "post", NULL, "view" ) == false )
+    {
+        main_message( req, "not_allowed" );
+        return;
+    }
+
+    // Get Id
+    char *httpVarId = main_variable_get( req, req->get_tree, "post_id" );
+    if( httpVarId == 0 )
+    {
+        main_vmessage( req, "no_data" );
+        return;
+    }
+
+    // Find row by id
+    database_bind_text( req->stmt_find_post, 1, httpVarId );
+    struct NNCMS_POST_ROW *post_row = (struct NNCMS_POST_ROW *) database_steps( req, req->stmt_find_post );
+    if( post_row == 0 )
+    {
+        main_vmessage( req, "not_found" );
+        return;
+    }
+    garbage_add( req->loop_garbage, post_row, MEMORY_GARBAGE_DB_FREE );
+
+    // Page title
+    struct NNCMS_VARIABLE vars[] =
+        {
+            { .name = "post_id", .value.string = post_row->id, .type = NNCMS_TYPE_STRING },
+            { .name = "post_subject", .value.string = post_row->subject, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE } // Terminating row
+        };
+    char *header_str = i18n_string_temp( req, "post_view_header", vars );
+
+    // Html output
+    struct NNCMS_FORM *form = post_view_form( req, post_row );
+    char *html = form_html( req, form );
+
+    // Generate links
+    char *links = post_links( req, post_row->id, post_row->parent_post_id );
+
+    // Specify values for template
+    struct NNCMS_VARIABLE frame_template[] =
+        {
+            { .name = "header", .value.string = header_str, .type = NNCMS_TYPE_STRING },
+            { .name = "content", .value.string = html, .type = NNCMS_TYPE_STRING },
+            { .name = "icon", .value.string = "images/stock/net/stock_mail-open.png", .type = NNCMS_TYPE_STRING },
+            { .name = "homeURL", .value.string = homeURL, .type = NNCMS_TYPE_STRING },
+            { .name = "links", .value.string = links, .type = NNCMS_TYPE_STRING },
+            { .type = NNCMS_TYPE_NONE } // Terminating row
+        };
+
     // Make a cute frame
-    template_iparse( req, TEMPLATE_FRAME, req->lpszFrame, NNCMS_PAGE_SIZE_MAX, frameTemplate );
+    template_hparse( req, "frame.html", req->frame, frame_template );
 
     // Send generated html to client
-    main_output( req, szHeader, req->lpszFrame, 0 );
+    main_output( req, header_str, req->frame->str, 0 );
+}
+
+// #############################################################################
+
+char *post_links( struct NNCMS_THREAD_INFO *req, char *post_id, char *post_parent_post_id )
+{
+    struct NNCMS_VARIABLE vars[] =
+    {
+        { .name = "post_id", .value.string = post_id, .type = NNCMS_TYPE_STRING },
+        { .type = NNCMS_TYPE_NONE }
+    };
+
+    struct NNCMS_VARIABLE vars_parent[] =
+    {
+        { .name = "post_id", .value.string = post_parent_post_id, .type = NNCMS_TYPE_STRING },
+        { .type = NNCMS_TYPE_NONE }
+    };
+
+    // Get access
+    bool read_access = false;
+    bool write_access = false;
+    bool exec_access = false;
+    bool parent_read_access = false;
+    bool parent_write_access = false;
+    bool parent_exec_access = false;
+    if( post_id )  post_get_access( req, NULL, post_id, &read_access, &write_access, &exec_access );
+    if( post_parent_post_id )  post_get_access( req, NULL, post_parent_post_id, &parent_read_access, &parent_write_access, &parent_exec_access );
+
+    // Create array for links
+    struct NNCMS_LINK link =
+    {
+        .function = NULL,
+        .title = NULL,
+        .vars = NULL
+    };
+
+    GArray *links = g_array_new( TRUE, FALSE, sizeof(struct NNCMS_LINK) );
+
+    // Fill the link array with links
+
+    if( read_access == true )
+    {
+        link.function = "post_list";
+        link.title = i18n_string_temp( req, "list_link", NULL );
+        link.vars = vars;
+        g_array_append_vals( links, &link, 1 );
+    }
+
+    if( parent_read_access == true )
+    {
+        if( post_parent_post_id != NULL )
+        {
+            link.function = "post_list";
+            link.title = i18n_string_temp( req, "parent_list_link", NULL );
+            link.vars = vars_parent;
+            g_array_append_vals( links, &link, 1 );
+        }
+    }
+
+    if( exec_access == true )
+    {
+        link.function = "post_add";
+        link.title = i18n_string_temp( req, "add_link", NULL );
+        link.vars = vars;
+        g_array_append_vals( links, &link, 1 );
+    }
+
+    if( post_id != NULL )
+    {
+        if( read_access == true )
+        {
+            link.function = "post_view";
+            link.title = i18n_string_temp( req, "view_link", NULL );
+            link.vars = vars;
+            g_array_append_vals( links, &link, 1 );
+        }
+
+        if( write_access == true )
+        {
+            link.function = "post_edit";
+            link.title = i18n_string_temp( req, "edit_link", NULL );
+            link.vars = vars;
+            g_array_append_vals( links, &link, 1 );
+
+            link.function = "post_delete";
+            link.title = i18n_string_temp( req, "delete_link", NULL );
+            link.vars = vars;
+            g_array_append_vals( links, &link, 1 );
+        }
+    }
+
+    // Convert arrays to HTML code
+    char *html = template_links( req, (struct NNCMS_LINK *) links->data );
+    garbage_add( req->loop_garbage, html, MEMORY_GARBAGE_GFREE );
+
+    // Free array
+    g_array_free( links, TRUE );
+
+    return html;
 }
 
 // #############################################################################

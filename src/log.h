@@ -12,8 +12,6 @@
 // includes of system headers
 //
 
-#include "config.h"
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -31,6 +29,7 @@
 //
 
 #include "main.h"
+#include "template.h"
 
 // #################################################################################
 
@@ -77,6 +76,27 @@ extern char szLogFile[NNCMS_PATH_LEN_MAX];
 
 #define NNCMS_MAX_LOG_TEXT      256
 
+struct NNCMS_LOG_ROW
+{
+    char *col_name[NNCMS_COLUMNS_MAX];
+    
+    /* 01 */ char *id;
+    /* 02 */ char *priority;
+    /* 03 */ char *text;
+    /* 04 */ char *timestamp;
+    /* 05 */ char *user_id;
+    /* 06 */ char *user_host;
+    /* 07 */ char *user_agent;
+    /* 08 */ char *uri;
+    /* 09 */ char *referer;
+    /* 10 */ char *function;
+    /* 11 */ char *src_file;
+    /* 12 */ char *src_line;
+    char *value[NNCMS_COLUMNS_MAX - 12];
+
+    struct NNCMS_ROW *next; // BC
+};
+
 // Priorities
 enum NNCMS_PRIORITY
 {
@@ -95,7 +115,7 @@ enum NNCMS_PRIORITY
 // This hold info about priority
 struct NNCMS_PRIORITY_INFO
 {
-    enum NNCMS_PRIORITY nPriority;
+    enum NNCMS_PRIORITY priority;
     char *lpszPriorityANSI;
     char *lpszPriority;
     char *lpszIcon;
@@ -103,17 +123,50 @@ struct NNCMS_PRIORITY_INFO
     char *lpszHtmlBgColor;
 };
 
+struct NNCMS_LOG
+{
+    GString *text;
+    enum NNCMS_PRIORITY priority;
+    time_t timestamp;
+};
+
 // Modular
-bool log_init( struct NNCMS_THREAD_INFO *req );
-bool log_deinit( struct NNCMS_THREAD_INFO *req );
+bool log_global_init( );
+bool log_global_destroy( );
+bool log_local_init( struct NNCMS_THREAD_INFO *req );
+bool log_local_destroy( struct NNCMS_THREAD_INFO *req );
 
 // Logging
-struct NNCMS_PRIORITY_INFO *log_get_priority( enum NNCMS_PRIORITY nPriority );
-void log_printf( struct NNCMS_THREAD_INFO *req, enum NNCMS_PRIORITY nPriority, char *lpszFormat, ... );
+struct NNCMS_PRIORITY_INFO *log_get_priority( enum NNCMS_PRIORITY priority );
+void log_debug_printf( struct NNCMS_THREAD_INFO *req, enum NNCMS_PRIORITY priority, char *format, const char *function, const char *src_file, int src_line, ... );
+void log_displayf( struct NNCMS_THREAD_INFO *req, enum NNCMS_PRIORITY priority, char *format, ... );
+void log_vdisplayf( struct NNCMS_THREAD_INFO *req, enum NNCMS_PRIORITY priority, char *i18n_id, struct NNCMS_VARIABLE *vars );
+struct NNCMS_LOG *log_session_get_messages( struct NNCMS_THREAD_INFO *req );
+void log_session_clear_messages( struct NNCMS_THREAD_INFO *req );
+
+// __FUNCTION__ is another name for __func__. Older versions of GCC recognize
+// only this name. However, it is not standardized. For maximum portability, we
+// recommend you use __func__, but provide a fallback definition with the
+// preprocessor
+#if __STDC_VERSION__ < 199901L
+# if __GNUC__ >= 2
+#  define __func__ __FUNCTION__
+# else
+#  define __func__ "<unknown>"
+# endif
+#endif
+
+#define log_print(req, priority, format) log_debug_printf( req, priority, format, __FUNCTION__, __FILE__, __LINE__ );
+#define log_printf(req, priority, format, ...) log_debug_printf( req, priority, format, __FUNCTION__, __FILE__, __LINE__, __VA_ARGS__ );
+//#define log_debug_print(req, priority, format) log_printf( req, priority, "[" __FUNCTION__ " at " __FILE__ ":" __LINE__ "]" format )
+//#define log_debug_printf(req, priority, format, ...) log_printf( req, priority, "[" __FUNCTION__ " at " __FILE__ ":" __LINE__ "]" format, __VA_ARGS__ )
 
 // Pages
 void log_view( struct NNCMS_THREAD_INFO *req );
 void log_clear( struct NNCMS_THREAD_INFO *req );
+void log_list( struct NNCMS_THREAD_INFO *req );
+
+char *log_links( struct NNCMS_THREAD_INFO *req, char *log_id );
 
 // #################################################################################
 

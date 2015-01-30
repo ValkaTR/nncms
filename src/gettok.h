@@ -12,8 +12,6 @@
 // includes of system headers
 //
 
-#include "config.h"
-
 #include <stdbool.h>
 
 // #############################################################################

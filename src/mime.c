@@ -49,6 +49,7 @@ struct NNCMS_MIME mime_tab[] = {
     {".h",      "text/plain"},
     {".htm",    "text/html"},
     {".html",   "text/html"},
+    {".jpe",    "image/jpeg"},
     {".jpeg",   "image/jpeg"},
     {".jpg",    "image/jpeg"},
     {".js",     "text/javascript"},
@@ -93,7 +94,7 @@ char mime_default[] = "application/octet-stream";
 // functions
 
 // Init module
-bool mime_init( )
+bool mime_global_init( )
 {
     if( is_mimeInit == false )
     {
@@ -114,7 +115,7 @@ bool mime_init( )
 // #############################################################################
 
 // DeInit module
-bool mime_deinit( )
+bool mime_global_destroy( )
 {
     if( is_mimeInit == true )
     {

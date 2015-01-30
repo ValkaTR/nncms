@@ -12,7 +12,7 @@
 // includes of system headers
 //
 
-#include "config.h"
+
 
 // #############################################################################
 // includes of local headers

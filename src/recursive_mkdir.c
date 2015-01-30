@@ -19,6 +19,7 @@
 // includes of system headers
 //
 
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -33,7 +34,7 @@
 
 void recursive_mkdir( const char *path )
 {
-    char opath[256];
+    char opath[FILENAME_MAX];
     char *p;
     size_t len;
 
@@ -46,11 +47,11 @@ void recursive_mkdir( const char *path )
         {
             *p = '\0';
             if( access( opath, F_OK ) )
-                mkdir( opath, S_IRWXU );
+                mkdir( opath, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
             *p = '/';
         }
     if( access( opath, F_OK ) ) /* if path is not terminated with / */
-        mkdir( opath, S_IRWXU );
+        mkdir( opath, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
 }
 
 // #############################################################################

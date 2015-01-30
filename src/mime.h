@@ -13,7 +13,7 @@
 // rofl includes of system headers
 //
 
-#include "config.h"
+
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -56,8 +56,8 @@ struct NNCMS_MIME {
 //
 
 // Module functions
-bool mime_init( );
-bool mime_deinit( );
+bool mime_global_init( );
+bool mime_global_destroy( );
 
 char *get_extension( char *fpath );
 char *get_mime( char *fpath );

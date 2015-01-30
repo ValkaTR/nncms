@@ -12,7 +12,7 @@
 // includes of system headers
 //
 
-#include "config.h"
+
 
 #include <string.h>
 #include <stdbool.h>
