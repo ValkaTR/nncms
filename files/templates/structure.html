@@ -16,22 +16,33 @@
     <tr>
         <td width="200" align="center" valign="top">
 <!-- Navigation -->
-<?lua return load("blocks/navigation.html") ?>
+<?lua print( load("blocks/navigation.html") ); ?>
 
 <!-- User block -->
 <?lua
-    if(var.guest == true) then
-        return login( )
+    if( var.guest == true ) then
+        print( login( ) );
+        --print( load("templates/user_login.html") );
     else
-        return profile( )
+        print( profile( ) );
+        --print( load("templates/user_profile.html") );
     end
 ?>
 
 <!-- Admin -->
-<?lua return load("blocks/admin.html") ?>
-
+<?lua print( load("blocks/admin.html") ); ?>
         </td>
-        <td align="center" valign="top"><?= content ?></td>
+        <td align="center" valign="top">
+            <?lua
+                if( var.messages ) then
+                    print( "<div class=\"msg_box\">" );
+                    --print( "<p align=\"right\"><a href=\"#\" class=\"close_notification\" title=\"Click to Close\" onclick=\"this.parentNode.parentNode.style.display = 'none';\">close</a></p>" );
+                    print( var.messages );
+                    print( "</div>" );
+                end
+            ?>
+            <?= content ?>
+        </td>
     </tr>
     <tr>
         <td colspan="2" align="right" valign="center"><i><?= copyleft ?></i></td>

@@ -1,5 +1,8 @@
 	<tr bgcolor="#FFEEEE">
-		<td><img src="<?= homeURL ?>/<?= file_icon ?>" width="16" height="16" alt="icon"> <a href="<?= homeURL ?><?lua return escape_html(var.file_path) ?>"><b>[<?lua return escape_html(var.file_name) ?>]</b></a></td>
+		<td>
+			<img src="<?= homeURL ?>/<?= file_icon ?>" width="16" height="16" alt="icon">
+			<a href="<?= homeURL ?>/file_browse.fcgi?file_path=<?lua return escape_html(var.file_path) ?>"><b>[<?lua return escape_html(var.file_name) ?>]</b></a>
+		</td>
 		<td>&lt;DIR&gt;<?= file_size ?></td>
 		<td><?= file_time ?></td>
 		<td align="center">

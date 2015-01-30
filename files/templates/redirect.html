@@ -7,13 +7,13 @@
 		<META name="copyright" content="&copy; 2009">
 		<META name="keywords" content="redirect">
 		<META name="date" content="2009-01-07T14:57:34+02:00">
-		<META http-equiv="refresh" content="2;url=<?lua return escape_html(var.redirect) ?>">
+		<META http-equiv="refresh" content="2;url=<?lua print( escape_html(var.redirect) ) ?>">
 	</HEAD>
 <BODY>
 
 <H1>Redirect page</H1>
 
-<P>Redirecting to: <A href="<?lua return escape_html(var.redirect) ?>"><?lua return escape_html(var.redirect) ?></A></P>
+<P>Redirecting to: <A href="<?lua print( escape_html(var.redirect) ) ?>"><?lua print( escape_html(var.redirect) ) ?></A></P>
 
 <P><A href="http://validator.w3.org/check?uri=referer"><IMG src="http://www.w3.org/Icons/valid-html401" alt="Valid HTML 4.01 Strict" height="31" width="88"></A></P>
 

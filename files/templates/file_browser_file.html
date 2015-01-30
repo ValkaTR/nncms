@@ -1,7 +1,7 @@
 	<tr bgcolor="#FFFFFF">
 		<td>
             <img src="<?= homeURL ?>/<?= file_icon ?>" width="16" height="16" alt="icon"> <?= image_thumbnail ?>
-            <a href="<?= homeURL ?>/view<?lua return escape_html(var.file_path .. var.file_name) ?>"><?lua return escape_html(var.file_name) ?></a>
+            <a href="<?= homeURL ?>/view.fcgi?file=<?lua return escape_html(var.file_path .. var.file_name) ?>"><?lua return escape_html(var.file_name) ?></a>
         </td>
 		<td><?= file_size ?></td>
 		<td><?= file_time ?></td>

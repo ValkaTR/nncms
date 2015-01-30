@@ -1,5 +1,5 @@
 // #############################################################################
-// Header file: tree.h
+// Header file: array.h
 
 // The author disclaims copyright to this source code.  In place of
 // a legal notice, here is a blessing:
@@ -12,10 +12,6 @@
 // includes of system headers
 //
 
-#include "config.h"
-
-#include <stdio.h>
-#include <stdlib.h>
 #include <stdbool.h>
 
 // #############################################################################
@@ -24,37 +20,35 @@
 
 // #############################################################################
 
-#ifndef __tree_h__
-#define __tree_h__
+#ifndef __array_h__
+#define __array_h__
 
 // #############################################################################
 // type and constant definitions
 //
 
-struct NNCMS_ATTRIBUTE
+struct NNCMS_ARRAY
 {
-	char *name;     // Attribute name
-	char *value;    // Attribute value
-	struct NNCMS_ATTRIBUTE *next;   // Pointer to next attribute
+    void *data;
+    size_t len;
+
+    size_t alloc;
+    size_t elt_size;
+    unsigned int zero_terminated : 1;
+    unsigned int clear : 1;
 };
+
+#define array_elt_len(array,i) ((array)->elt_size * (i))
+#define array_elt_pos(array,i) ((array)->data + g_array_elt_len((array),(i)))
 
 // #############################################################################
 // function declarations
 //
 
-// Functions for working with attributes
-char *tree_get_attribute( struct NNCMS_ATTRIBUTE *attr, char *name );
-void tree_set_attribute( struct NNCMS_ATTRIBUTE **attr, char *name, char *value );
-
-struct NNCMS_ATTRIBUTE *tree_add_attribute( struct NNCMS_ATTRIBUTE **attr );
-struct NNCMS_ATTRIBUTE *tree_create_attribute(  );
-
-void tree_destroy_attributes( struct NNCMS_ATTRIBUTE **attr );
-void tree_remove_attribute( struct NNCMS_ATTRIBUTE **attr, char *name );
-void tree_delete_attribute( struct NNCMS_ATTRIBUTE *a );
+struct NNCMS_ARRAY *array_new( size_t elt_size, size_t reserved_size );
 
 // #############################################################################
 
-#endif // __tree_h__
+#endif // __array_h__
 
 // #############################################################################

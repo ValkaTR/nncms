@@ -1,0 +1,15 @@
+<?= form_header_html ?>
+<?lua 
+    if var.form_title then
+        print( "<h1>" .. var.form_title .. "</h1>\n" );
+    end
+    if var.form_help then
+        print( "<p>" .. var.form_help .. "</p>\n" );
+    end
+?>
+<form enctype="multipart/form-data" name="<?= form_name ?>" action="<?= form_action ?>" method="<?= form_method ?>">
+    <table border="0" cellpadding="5" cellspacing="0" width="100%">
+<?= form_fields ?>
+    </table>
+</form>
+<?= form_footer_html ?>
