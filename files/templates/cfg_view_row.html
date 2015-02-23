@@ -1,8 +1,0 @@
-	<tr bgcolor="#FFFFFF">
-		<td align="center"><?= cfg_id ?></td>
-		<td><?= cfg_name ?></td>
-		<td><?= cfg_value ?></td>
-		<td><?= cfg_type ?></td>
-		<td><?= cfg_lpmem ?></td>
-		<td align="center"><?lua if(acl("cfg", "edit") == true) then return "<a href=\"" .. var.homeURL .. "/cfg_edit.fcgi?cfg_id=" .. var.cfg_id .. "\"><img src=\"" ..  var.homeURL .. "/images/actions/gtk-edit.png\" border=\"0\" width=\"16\" height=\"16\" alt=\"edit\" title=\"Edit\"></a>" end ?></td>
-	</tr>

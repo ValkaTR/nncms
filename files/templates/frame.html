@@ -1,14 +1,17 @@
-<center><table cellpadding="5" cellspacing="1" class="frame" width="100%">
-	<tr><th class="frame" height="32">
-        <img src="<?= homeURL ?>/<?= icon ?>" width="16" height="16" alt="icon"> <?= header ?>
-    </th></tr>
-	<tr class="frame"><td align="left">
-        <?lua
-            if var.links  then
-                print( "<p>" .. var.links .. "</p>" );
-            end
-        ?>
-        <p><?= content ?></p>
-    </td></tr>
-</table></center>
-<br>
+<!--<img src="<?= homeURL ?>/<?= icon ?>" width="16" height="16" alt="icon">-->
+<!-- FRAME HEADER -->
+<h1><?= header ?></h1>
+
+<?= pager ?>
+
+<!-- FRAME LINKS -->
+<?lua
+    if var.links  then
+        print( "<p>" .. var.links .. "</p>" );
+    end
+?>
+
+<!-- FRAME CONTENT -->
+<?= content ?>
+
+<?= pager ?>

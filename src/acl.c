@@ -190,17 +190,17 @@ bool acl_check_perm( struct NNCMS_THREAD_INFO *req, char *name, char *subject, c
         // Current user
         user_group_array = req->group_id;
     }
-    
+
     for( int i = 0; user_group_array != NULL && user_group_array[i] != NULL; i = i + 1 )
     {
         bool result = acl_test_perm( req, name, user_group_array[i], permission );
-        
+
         if( group_row != NULL ) database_free_rows( (struct NNCMS_ROW *) group_row );
         if( user_groups != NULL ) g_array_free( user_groups, true );
-        
+
         if( result == true ) return true;
-    }  
-     
+    }
+
     return false;
 }
 
@@ -251,7 +251,7 @@ void acl_add( struct NNCMS_THREAD_INFO *req )
 
         // Get POST data
         form_post_data( req, (struct NNCMS_FIELD *) fields );
-        
+
         // Validate
         bool field_valid = field_validate( req, (struct NNCMS_FIELD *) fields );
         if( field_valid == true )
@@ -273,7 +273,7 @@ void acl_add( struct NNCMS_THREAD_INFO *req )
             log_printf( req, LOG_ACTION, "ACL was added (id = %i)", acl_id );
 
             // Redirect back
-            redirect_to_referer( req ); 
+            redirect_to_referer( req );
             return;
         }
     }
@@ -377,7 +377,7 @@ void acl_edit( struct NNCMS_THREAD_INFO *req )
 
         // Get POST data
         form_post_data( req, (struct NNCMS_FIELD *) fields );
-        
+
         // Validate
         bool field_valid = field_validate( req, (struct NNCMS_FIELD *) fields );
         if( field_valid == true )
@@ -533,7 +533,7 @@ void acl_list( struct NNCMS_THREAD_INFO *req )
         { .field_name = "subject", .operator = NNCMS_OPERATOR_EQUAL, .field_value = NULL, .filter_exposed = true, .operator_exposed = false, .required = false },
         { .operator = NNCMS_OPERATOR_NONE }
     };
-    
+
     struct NNCMS_SORT sort[] =
     {
         { .field_name = "name", .direction = NNCMS_SORT_ASCENDING },
@@ -738,16 +738,16 @@ char *acl_links( struct NNCMS_THREAD_INFO *req, char *acl_id )
         { .name = "acl_id", .value.string = acl_id, .type = NNCMS_TYPE_STRING },
         { .type = NNCMS_TYPE_NONE }
     };
-    
+
     // Create array for links
-    
+
     struct NNCMS_LINK link =
     {
         .function = NULL,
         .title = NULL,
         .vars = NULL
     };
-    
+
     GArray *links = g_array_new( TRUE, FALSE, sizeof(struct NNCMS_LINK) );
 
     // Fill the link array with links
@@ -786,7 +786,7 @@ char *acl_links( struct NNCMS_THREAD_INFO *req, char *acl_id )
 
     // Free array
     g_array_free( links, TRUE );
-    
+
     return html;
 }
 

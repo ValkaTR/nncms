@@ -1,4 +1,1 @@
-        <tr>
-            <td width="150" valign="top"><span class="varname"><?= field_text_name ?></span><br><span class="vardesc"><?= field_text_description ?></span></td>
-            <td valign="middle"><textarea tabindex="1" name="<?= field_name ?>" rows="15" cols="96"><?lua print(escape_html(var.field_value)) ?></textarea></td>
-        </tr>
+    <textarea name="<?= field_name ?>" id="<?= field_name ?>" title="<?= field_text_description ?>" rows="30" cols="120"><?lua print(escape_html(var.field_value)) ?></textarea>

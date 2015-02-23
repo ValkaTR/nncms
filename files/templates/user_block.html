@@ -1,6 +1,15 @@
-Logged in as <a href="<?= homeURL ?>/user_view.fcgi?user_id=<?= user_id ?>"><?= user_name ?></a>.
+<p>
+<img align="center" src="/<?= user_avatar ?>"><br>
+<a href="<?= homeURL ?>/user_view.fcgi?user_id=<?= user_id ?>"><?= user_nick ?></a>
+</p>
 
-<ul>
-	<li><a href="<?= homeURL ?>/user_profile.fcgi?user_id=<?= user_id ?>"><img src="<?= homeURL ?>/images/actions/gtk-edit.png" width="16" height="16" alt="icon" border="0"> Profile</a></li>
+<ul class="side_menu">
+	<li><a href="<?= homeURL ?>/user_edit.fcgi?user_id=<?= user_id ?>"><img src="<?= homeURL ?>/images/actions/gtk-edit.png" width="16" height="16" alt="icon" border="0"> Profile</a></li>
+	<li><a href="<?= homeURL ?>/user_avatar.fcgi?user_id=<?= user_id ?>"><img src="<?= homeURL ?>/images/actions/gtk-edit.png" width="16" height="16" alt="icon" border="0"> Avatar</a></li>
+<?lua
+if var.user_folder_id then
+print( "<li><a href=\"" .. var.homeURL .. "/file_list.fcgi?file_id=" .. var.user_folder_id .. "\"><img src=\"" .. var.homeURL .. "/images/apps/system-file-manager.png\" width=\"16\" height=\"16\" alt=\"icon\" border=\"0\"> User folder</a></li>" );
+end
+?>
 	<li><a href="<?= homeURL ?>/user_logout.fcgi"><img src="<?= homeURL ?>/images/apps/preferences-system-users.png" width="16" height="16" alt="icon" border="0"> Logout</a></li>
 </ul>

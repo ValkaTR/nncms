@@ -223,7 +223,7 @@ struct NNCMS_THREAD_INFO
     sqlite3_stmt *stmt_find_file_by_id, *stmt_count_file_childs, *stmt_list_files,
         *stmt_list_file_childs, *stmt_add_file, *stmt_edit_file, *stmt_delete_file,
         *stmt_list_folders, *stmt_find_file_by_name;
-    
+
     // Prepared statements for node
     sqlite3_stmt *stmt_delete_node, *stmt_delete_node_rev, *stmt_list_node_rev,
         *stmt_find_node_rev, *stmt_delete_field_data_by_node_rev_id,
@@ -263,11 +263,11 @@ struct NNCMS_THREAD_INFO
 
     // Lua VM
     lua_State *L;
-    
+
     // This collects pointers which are freed later
     GArray *loop_garbage;
     GArray *thread_garbage;
-    
+
     // Remove me
     char *lpszBuffer;
     char *lpszFrame;

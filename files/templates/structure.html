@@ -1,53 +1,131 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Strict//EN">
 <html lang="ru">
 <head>
-    <title>[NNCMS]::[<?= title ?>]</title>
+    <title><?= title ?> — PIK-PIK</title>
     <meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
     <meta content="nncms" name="GENERATOR">
     <link rel="stylesheet" type="text/css" href="/templates/style.css">
     <link rel="shortcut icon" href="/favicon.ico">
+    <!--[if gte IE 9]>
+      <style type="text/css">
+        .gradient {
+           filter: none;
+        }
+      </style>
+    <![endif]-->
+    <link type="text/css" href="/css/redmond/jquery-ui-1.10.3.custom.css" rel="Stylesheet" />
+    <script type="text/javascript" src="/js/jquery-1.9.1.js"></script>
+    <script type="text/javascript" src="/js/jquery.tmpl.js"></script>
+    <script type="text/javascript" src="/js/jquery-ui-1.10.3.custom.js"></script>
+    <script type="text/javascript" src="/js/tmpl.js"></script>
 </head>
 <body bgcolor="#FFFFFF">
 
-<center><table cellpadding="5" cellspacing="0" width="100%" border="0">
-    <!--<tr><td colspan="2" align="center" valign="center" height="0">-->
-    <!--<img src="/nncms/nncmslogo.gif">-->
-    <!--</td></tr>-->
-    <tr>
-        <td width="200" align="center" valign="top">
+<div id="page">
+
+<div id="logo">
+    <table border="0" cellpadding="0" cellspacing="0"><tr>
+    <td valign="middle" width="90"><img src="images/pik-pik_logo.png" width="90" height="85" alt="pik-pik logo" style="vertical-align: middle;"></td>
+    <td valign="middle" width="100%"><span id="title">PIK–PIK<!-- `'��"°±²´µ¶·¸º»¼¿��W --></span></td>
+    </tr></table>
+</div>
+
+<div id="frame">
+
+<div id="buttons">
+    <ul class="top_menu">
+        <li><a href="/index.fcgi">Home</a></li>
+        <li><a href="/node_view.fcgi?node_id=8">Programming</a></li>
+        <li><a href="#">Electronics</a></li>
+        <li><a href="#">Media</a></li>
+        <li><a href="#">Community</a></li>
+        <li><a href="/node_view.fcgi?node_id=9">NNCMS</a></li>
+    </ul>
+</div>
+
+<div class="left">
+
 <!-- Navigation -->
 <?lua print( load("blocks/navigation.html") ); ?>
 
 <!-- User block -->
 <?lua
     if( var.guest == true ) then
-        print( login( ) );
+        --print( login( ) );
         --print( load("templates/user_login.html") );
+        print( [[ <div class="menu_header">]] .. i18n_string( "user_login_block" ) .. [[</div>]] );
+print( [[
+<form name="user_login" action="]] .. var.homeURL .. [[/user_login.fcgi" method="POST">
+<input type="text" name="user_name" size="15" value="" placeholder="User name" required></td>
+<input type="password" name="user_pass" size="15" value="" placeholder="Password"></td>
+<input type="hidden" name="referer" value="">
+<input type="hidden" name="fkey" value="">
+<input type="submit" name="user_login" value="Login">
+</form>
+<!-- <a href="]] .. var.homeURL .. [[/user_add.fcgi">Register</a> -->
+]] );
     else
-        print( profile( ) );
-        --print( load("templates/user_profile.html") );
+        --print( profile( ) );
+        --print( parse( "user_block", load("templates/user_block.html") ) );
+        
+        print( [[ <div class="menu_header">]] .. i18n_string( "user_profile_block" ) .. [[</div>]] );
+        
+print( [[
+<p>
+<img align="center" src="/]] .. var.user_avatar .. [["><br>
+<a href="]] .. var.homeURL .. [[/user_view.fcgi?user_id=]] .. var.user_id .. [[">]] .. var.user_nick .. [[</a>
+</p>
+
+<ul class="side_menu">
+	<li><a href="]] .. var.homeURL .. [[/user_edit.fcgi?user_id=]] .. var.user_id .. [["><img src="]] .. var.homeURL .. [[/images/actions/gtk-edit.png" width="16" height="16" alt="icon" border="0"> Profile</a></li>
+	<li><a href="]] .. var.homeURL .. [[/user_avatar.fcgi?user_id=]] .. var.user_id .. [["><img src="]] .. var.homeURL .. [[/images/actions/gtk-edit.png" width="16" height="16" alt="icon" border="0"> Avatar</a></li>
+]] )
+
+if var.user_folder_id then
+    print( "<li><a href=\"" .. var.homeURL .. "/file_list.fcgi?file_id=" .. var.user_folder_id .. "\"><img src=\"" .. var.homeURL .. "/images/apps/system-file-manager.png\" width=\"16\" height=\"16\" alt=\"icon\" border=\"0\"> User folder</a></li>" );
+end
+
+print( [[
+	<li><a href="]] .. var.homeURL .. [[/user_logout.fcgi"><img src="]] .. var.homeURL .. [[/images/apps/preferences-system-users.png" width="16" height="16" alt="icon" border="0"> Logout</a></li>
+</ul>
+
+]] );
+
+
     end
 ?>
 
 <!-- Admin -->
-<?lua print( load("blocks/admin.html") ); ?>
-        </td>
-        <td align="center" valign="top">
-            <?lua
-                if( var.messages ) then
-                    print( "<div class=\"msg_box\">" );
-                    --print( "<p align=\"right\"><a href=\"#\" class=\"close_notification\" title=\"Click to Close\" onclick=\"this.parentNode.parentNode.style.display = 'none';\">close</a></p>" );
-                    print( var.messages );
-                    print( "</div>" );
-                end
-            ?>
-            <?= content ?>
-        </td>
-    </tr>
-    <tr>
-        <td colspan="2" align="right" valign="center"><i><?= copyleft ?></i></td>
-    </tr>
-</table></center>
+<?lua
+if acl( "site", nil, "admin" ) then
+    print( load("blocks/admin.html") );
+end
+?>
+
+</div>
+
+<?lua
+    if( var.messages ) then
+        print( "<div class=\"msg_box\">" );
+        --print( "<p align=\"right\"><a href=\"#\" class=\"close_notification\" title=\"Click to Close\" onclick=\"this.parentNode.parentNode.style.display = 'none';\">close</a></p>" );
+        print( var.messages );
+        print( "</div>" );
+    end
+?>
+
+<div id="content">
+
+<?= content ?>
+
+</div>
+
+<div id="footer">
+Creative Commons CC-BY. Hosted by Lionhost. Powered by NNCMS.
+</div>
+
+</div>
+
+</div>
 
 </body>
 </html>

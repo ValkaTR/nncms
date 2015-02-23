@@ -1,4 +1,1 @@
-        <tr>
-            <td width="30%" valign="top"><span class="varname"><?= field_text_name ?></span><br><span class="vardesc"><?= field_text_description ?></span></td>
-            <td width="70%" valign="middle"><input type="text" name="<?= field_name ?>" size="60" value="<?lua print(escape_html(var.field_value)); ?>"></td>
-        </tr>
+    <input type="text" name="<?= field_name ?>" id="<?= field_name ?>" title="<?= field_text_description ?>" size="60" value="<?lua print(escape_html(var.field_value)); ?>">

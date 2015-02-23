@@ -1,21 +1,8 @@
 <form name="user_login" action="<?= homeURL ?>/user_login.fcgi" method="POST">
-    <table border="0" cellpadding="2" cellspacing="0" width="100%">
-    <tr>
-        <td valign="top" align="right"><b>user:</b></td>
-        <td valign="middle" align="left"><input type="text" name="user_name" size="10" value=""></td>
-    </tr>
-    <tr>
-        <td valign="top" align="right"><b>pass:</b></td>
-        <td valign="middle" align="left"><input type="password" name="user_pass" size="10" value=""></td>
-    </tr>
-    <tr>
-        <td valign="top">&nbsp;</td>
-        <td valign="middle">
-		<input type="hidden" name="referer" value="<?lua print(escape_html(var.referer)) ?>">
-        <input type="hidden" name="fkey" value="<?= fkey ?>">
-		<input type="submit" name="user_login" value="Login">
-	</td>
-    </tr>
-    </table>
+<input type="text" name="user_name" size="15" value="" placeholder="User name" required></td>
+<input type="password" name="user_pass" size="15" value="" placeholder="Password"></td>
+<input type="hidden" name="referer" value="<?lua print(escape_html(var.referer)) ?>">
+<input type="hidden" name="fkey" value="<?= fkey ?>">
+<input type="submit" name="user_login" value="Login">
 </form>
 <!-- <a href="<?= homeURL ?>/user_add.fcgi">Register</a> -->
