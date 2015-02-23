@@ -1,0 +1,19 @@
+
+<table class="post" align="right" style="margin-top: 5px; margin-bottom: 5px;" border="0" cellpadding="5" cellspacing="1" width="<?lua if var.depth then print( 100 - (var.depth - 1) * 2 ); else print( "100 " ); end ?>%">
+    <tr>
+        <td colspan="2">
+            <?= timestamp ?> <?= user ?>
+            <span style="float: rjklight;"><?lua
+                if var.links then
+                    print( var.links );
+                end
+            ?></span>
+        </td>
+    </tr>
+    <tr>
+        <td width="100" align="center" valign="top"><img src="/<?= user_avatar ?>"></td>
+        <td>
+            <?= body ?>
+        </td>
+    </tr>
+</table><br>

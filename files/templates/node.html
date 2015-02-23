@@ -1,0 +1,20 @@
+<article id="node-<?= node_id ?>">
+<div class="node">
+<!-- NODE HEADER -->
+<h1><a href="/node_view.fcgi?node_id=<?= node_id ?>" rel="bookmark"><?= header ?></a></h1>
+
+<!-- NODE LINKS -->
+<?lua
+    if var.links then
+        print( "<p>" .. var.links .. "</p>" );
+    end
+
+    if var.authoring == "1" then
+        print( "<div class=\"field\"><strong>By</strong> " .. var.user_id .. " <em>- Posted on</em> " .. var.timestamp .. "</div>" );
+    end
+?>
+
+<!-- NODE CONTENT -->
+<?= content ?>
+</div>
+</article>

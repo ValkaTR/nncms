@@ -1,0 +1,17 @@
+<?= form_header_html ?>
+<?lua 
+    if var.form_help then
+        print( "<p>" .. var.form_help .. "</p>\n" );
+    end
+?>
+<form enctype="multipart/form-data" name="<?= form_name ?>" action="<?= form_action ?>" method="<?= form_method ?>">
+<!--<fieldset id="<?= form_name ?>">-->
+<?lua 
+    if var.form_title then
+        print( "<legend>" .. var.form_title .. "</legend>\n" );
+    end
+?>
+<?= form_fields ?>
+<!--</fieldset>-->
+</form>
+<?= form_footer_html ?>

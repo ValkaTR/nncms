@@ -1,0 +1,11 @@
+<div class="field" id="fieldwrapper_<?= field_name ?>">
+    <label for="<?= field_name ?>" class="<?= label_class ?>"><?= field_text_name ?></label>
+    <div class="field_items">
+    <?= field_values ?>
+    </div>
+    <?lua
+        if (var.values_count > 1 or var.values_count == -1) and var.editable == true then
+        print( "<button name=\"" .. var.field_name .. "_add\" type=\"submit\">Add more</button>" );
+        end
+    ?>
+</div>
